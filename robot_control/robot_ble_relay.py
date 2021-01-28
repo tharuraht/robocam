@@ -22,8 +22,8 @@ parser.add_argument('--port', type=str, default=DEFAULT_UDP_PORT,
     help='Port to listen on')
 
 args = parser.parse_args()
-UDP_IP = args.targetIP
-UDP_PORT = args.targetPort
+UDP_IP = args.sourceIP
+UDP_PORT = args.port
 
 try:
   dev = btle.Peripheral(BLE_MAC_ADDR, btle.ADDR_TYPE_RANDOM)

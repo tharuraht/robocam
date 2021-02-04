@@ -10,19 +10,9 @@ import argparse
 import serial
 
 DEFAULT_UDP_PORT = 5005
-ARDUINO_COM = 'COM4'
+ARDUINO_COM = '/dev/ttyUSB0'
 
 # Define arguments
-parser = argparse.ArgumentParser(description="Sends control signals created by\
-    video game controller")
-parser.add_argument('targetIP', type=str, help='IP address of target device')
-parser.add_argument('--targetPort', type=str, default=DEFAULT_UDP_PORT,
-    help='Target port to send to')
-
-args = parser.parse_args()
-UDP_IP = args.targetIP
-UDP_PORT = args.targetPort
-
 pygame.init()
 pygame.joystick.init()
 
@@ -46,7 +36,7 @@ try:
         miss="{:.0f}".format(x)+","+"{:.0f}".format(y)
         if(miss!=misp):
             print (miss)
-            ser.write(miss)
+            ser.write(miss.encode('utf-8'))
         else:
             # print ("stndby: "+miss)
             pass

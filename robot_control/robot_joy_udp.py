@@ -52,5 +52,5 @@ try:
             pass
         time.sleep(0.05)
 except KeyboardInterrupt:
-    sock.sendto("0,0",(UDP_IP, UDP_PORT))
+    sock.sendto("0,0".encode(),(UDP_IP, UDP_PORT))
     time.sleep(1)

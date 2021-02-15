@@ -2,7 +2,7 @@
 import sys
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import GObject, Gst
+from gi.repository import Gst, GLib
 
 def bus_call(bus, msg, *args):
     # print("BUSCALL", msg, msg.type, *args)
@@ -18,14 +18,14 @@ def bus_call(bus, msg, *args):
 
 
 if __name__ == "__main__":
-    GObject.threads_init()
     # initialization
-    loop = GObject.MainLoop()
+    loop = GLib.MainLoop()
     Gst.init(None)
 
     # pipeline = Gst.parse_launch ("rpicamsrc name=src ! video/x-h264,width=320,height=240 ! h264parse ! mp4mux ! filesink name=s")
     pipeline = Gst.parse_launch("\
     udpsrc port=5000 name=src \
+    ! gdpdepay \
     ! rtph264depay \
     ! avdec_h264 \
     ! videoconvert \

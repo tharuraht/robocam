@@ -7,6 +7,10 @@ BINS := $(SRCS:%.c=%)
 
 all: ${BINS}
 
+src: udp_stream
+
+rec: udp_receive
+
 %: %.c
 	${CC} ${GSTREAMER_FLAGS} $< -o $@
 

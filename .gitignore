@@ -30,5 +30,7 @@
 *.exe
 *.out
 *.app
+udp_receive
+udp_stream
 
 .vscode

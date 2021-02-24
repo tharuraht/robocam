@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     # pipeline = Gst.parse_launch ("rpicamsrc name=src ! video/x-h264,width=320,height=240 ! h264parse ! mp4mux ! filesink name=s")
     pipeline = Gst.parse_launch("\
-    udpsrc port=5000 name=src \
+    tcpserversrc port=5000 host=192.168.0.99 name=src \
     ! gdpdepay \
     ! rtph264depay \
     ! avdec_h264 \

@@ -41,22 +41,21 @@ def set_bitrate(pipeline):
     # bitrate += 10
     # bitrate = random.choice(rates)
     # Get network connection speed
-    net_bitrate = iperf_data.run_udp_speedtest(HOSTIP)
+    net_bitrate = iperf_data.run_udp_speedtest(HOSTIP, 2*bitrate, 5)
     # TODO look for a good scaling
     print(f"Net bit-rate {net_bitrate}")
-    bitrate = 0.7*net_bitrate
+    bitrate = int(0.3*net_bitrate)
     return True
 
 
 if __name__ == "__main__":
-    # GObject.threads_init()
     # initialization
     loop = GLib.MainLoop()
     Gst.init(None)
 
     # pipeline = Gst.parse_launch ("rpicamsrc name=src ! video/x-h264,width=320,height=240 ! h264parse ! mp4mux ! filesink name=s")
     pipeline = Gst.parse_launch(f"\
-    rpicamsrc preview=false rotation=180 annotation-mode=time+date name=src \
+    rpicamsrc preview=true rotation=180 annotation-mode=time+date name=src \
     ! video/x-h264,{STREAM_PARAMS} \
     ! h264parse \
     ! queue \

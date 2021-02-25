@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Relay program, waits for incoming commands from host machine and forwards to
-# the nrf80001/robot plaftform
+# robot plaftform via USB serial connection
 # Based on work from Dr. Adria Junyent-Ferré
 # https://hackaday.io/project/170624-wi-fi-controlled-car-turtle-bot-with-fpv
 
@@ -8,6 +8,12 @@ import time
 import socket
 import argparse
 import serial
+import os
+import sys
+
+utils_path = os.path.join(os.getcwd(),'..','utils')
+sys.path.insert(1, utils_path)
+import upnp_setup
 
 DEFAULT_UDP_IP = "0.0.0.0"
 DEFAULT_UDP_PORT = 5005
@@ -25,11 +31,15 @@ UDP_IP = args.sourceIP
 UDP_PORT = args.port
 SER_PORT = args.SERIAL_PORT
 
+#Open UPnP port
+upnp = upnp_setup.upnp_port(UDP_PORT)
+
 try:
     #Connect to Arduino serial port
     ser = serial.Serial(SER_PORT, 9800, timeout=1)
 except Exception as e:
     print(e)
+    upnp.close_port()
     exit(1)
 
 time.sleep(1)
@@ -51,3 +61,5 @@ try:
 except KeyboardInterrupt:
   ser.close()
   time.sleep(1)
+
+upnp.close_port()

@@ -14,11 +14,16 @@ class upnp_port():
   u = miniupnpc.UPnP()
   port = None
   eport = None
+  mode = None
+  lanoverride = None
 
-  def __init__(self, port):
+  def __init__(self, port, mode='TCP', lanoverride = None):
     self.u.discoverdelay = 200
     self.port = port
+    self.mode = mode
+    self.lanoverride = lanoverride
     self.open_port()
+    
 
   def open_port(self):
     """
@@ -32,6 +37,12 @@ class upnp_port():
     #print ' multicastif', self.u.multicastif
     #print ' minissdpdsocket', self.u.minissdpdsocket
 
+    if self.lanoverride != None:
+      lanaddr = self.lanoverride
+    else:
+      lanaddr = self.u.lanaddr
+      lanaddr = '192.168.0.106'
+
     try:
       print('Discovering... delay=%ums' % self.u.discoverdelay)
       ndevices = self.u.discover()
@@ -39,23 +50,25 @@ class upnp_port():
 
       # select an igd
       self.u.selectigd()
+      
       # display information about the IGD and the internet connection
-      print('local ip address :', self.u.lanaddr)
+      print('local ip address :', lanaddr)
       externalipaddress = self.u.externalipaddress()
+      # externalipaddress = '185.69.144.86'
       print('external ip address :', externalipaddress)
       print(self.u.statusinfo(), self.u.connectiontype())
 
       eport = self.port
 
       # find a free port for the redirection
-      r = self.u.getspecificportmapping(eport, 'TCP')
+      r = self.u.getspecificportmapping(eport, self.mode)
       while r != None and eport < 65536:
         eport = eport + 1
-        r = self.u.getspecificportmapping(eport, 'TCP')
+        r = self.u.getspecificportmapping(eport, self.mode)
 
-      print('trying to redirect %s port %u TCP => %s port %u TCP' % (externalipaddress, eport, self.u.lanaddr, self.port))
+      print('trying to redirect %s port %u => %s port %u %s' % (externalipaddress, eport, lanaddr, self.port, self.mode))
 
-      b = self.u.addportmapping(eport, 'TCP', self.u.lanaddr, self.port,
+      b = self.u.addportmapping(eport, self.mode, lanaddr, self.port,
                           'UPnP IGD Tester port %u' % eport, '')
       if b:
         print('Success')
@@ -67,14 +80,14 @@ class upnp_port():
       print('Exception :', e)
 
   def close_port(self) -> bool:
-    b = self.u.deleteportmapping(self.eport, 'TCP')
+    b = self.u.deleteportmapping(self.eport, self.mode)
     if b:
       print('Successfully deleted port mapping')
     else:
       print('Failed to remove port mapping')
 
 
-def force_close(port):
+def force_close(port, mode = 'TCP'):
   """
   Finds IGD and attempts to close port
   """
@@ -87,10 +100,10 @@ def force_close(port):
   # select an igd
   u.selectigd()
 
-  u.deleteportmapping(port, 'TCP')
+  u.deleteportmapping(port, mode)
 
 if __name__ == '__main__':
-  u = upnp_port(5002)
+  u = upnp_port(5002, 'TCP')
   try:
     while True: pass
   except KeyboardInterrupt as details:

@@ -32,10 +32,13 @@ UDP_PORT = args.port
 SER_PORT = args.SERIAL_PORT
 
 #Open UPnP port
-upnp = upnp_setup.upnp_port(UDP_PORT)
+lan = None
+# lan = '192.168.8.107'
+upnp = upnp_setup.upnp_port(UDP_PORT, mode='UDP', lanoverride = lan) 
 
 try:
     #Connect to Arduino serial port
+    print(f"Connecting to serial port {SER_PORT}")
     ser = serial.Serial(SER_PORT, 9800, timeout=1)
 except Exception as e:
     print(e)

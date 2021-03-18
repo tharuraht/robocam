@@ -60,7 +60,8 @@ try:
         misp=miss
     else:
         # print ("stndby: ",miss)
-        pass
+        # pass
+        ser.write(0,0)
 except KeyboardInterrupt:
   ser.close()
   time.sleep(1)

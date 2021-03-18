@@ -8,12 +8,12 @@ import iperf3
 
 # iperf3 -c 77.101.164.194 -p 5000 -u -b 1000000000 -J -t 5 > perf.json
 
-def run_udp_speedtest(hostname, bandwidth=1000000000, duration=5):
+def run_speedtest(hostname, bandwidth=1000000000, duration=5, protocol='udp'):
   client = iperf3.Client()
   client.duration = duration
   client.server_hostname = hostname
   client.port = 5001
-  client.protocol = 'udp'
+  client.protocol = protocol
   client.bandwidth = bandwidth
 
   print('Connecting to {0}:{1}'.format(client.server_hostname, client.port))
@@ -31,7 +31,7 @@ def run_udp_speedtest(hostname, bandwidth=1000000000, duration=5):
     print('Average transmitted data in all sorts of networky formats:')
     # print(' bits per second (bps) {0}'.format(result.bps))
     # print(' Kilobits per second (kbps) {0}'.format(result.kbps))
-    print(' Megabits per second (Mbps) {0}'.format(result.Mbps))
+    # print(' Megabits per second (Mbps) {0}'.format(result.Mbps))
     # print(' KiloBytes per second (kB/s) {0}'.format(result.kB_s))
     # print(' MegaBytes per second (MB/s) {0}'.format(result.MB_s))
 

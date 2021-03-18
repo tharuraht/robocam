@@ -41,7 +41,7 @@ def set_bitrate(pipeline):
     # bitrate += 10
     # bitrate = random.choice(rates)
     # Get network connection speed
-    net_bitrate = iperf_data.run_udp_speedtest(HOSTIP, 2*bitrate, 5)
+    net_bitrate = iperf_data.run_speedtest(HOSTIP, 2*bitrate, 5, protocol='tcp')
     # TODO look for a good scaling
     print(f"Net bit-rate {net_bitrate}")
     bitrate = int(0.3*net_bitrate)

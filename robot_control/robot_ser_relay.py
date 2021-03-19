@@ -25,16 +25,18 @@ parser.add_argument('--sourceIP', type=str, default=DEFAULT_UDP_IP,
     help='IP address of this device')
 parser.add_argument('--port', type=str, default=DEFAULT_UDP_PORT,
     help='Port to listen on')
+parser.add_argument('--port_forward', action='store_true')
 
 args = parser.parse_args()
 UDP_IP = args.sourceIP
 UDP_PORT = args.port
 SER_PORT = args.SERIAL_PORT
 
-#Open UPnP port
-lan = None
-# lan = '192.168.8.107'
-upnp = upnp_setup.upnp_port(UDP_PORT, mode='UDP', lanoverride = lan) 
+if args.port_forward:
+    #Open UPnP port
+    lan = None
+    # lan = '192.168.8.107'
+    upnp = upnp_setup.upnp_port(UDP_PORT, mode='UDP', lanoverride = lan) 
 
 try:
     #Connect to Arduino serial port

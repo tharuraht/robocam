@@ -11,7 +11,7 @@ import serial
 import os
 import sys
 
-utils_path = os.path.join(os.getcwd(),'..','utils')
+utils_path = os.path.join(os.getcwd(),'..','..','utils')
 sys.path.insert(1, utils_path)
 import upnp_setup
 

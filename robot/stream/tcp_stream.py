@@ -15,7 +15,7 @@ class video_streamer:
     loop = GLib.MainLoop()
     Gst.init(None)
     # bitrate = 0
-    rate_scaling_factor = 0.7
+    rate_scaling_factor = 1.2
 
     def __init__(self, conf):
         self.conf = conf
@@ -56,6 +56,7 @@ class video_streamer:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((tcp_ip, tcp_port))
+            # print('connected')
             while True:
                 data = s.recv(buff_sz)
                 if data:
@@ -63,15 +64,18 @@ class video_streamer:
                     # print('msg',msg)
                     ctrl, val = msg.split(':')
                     if ctrl == 'REC_BITRATE':
-                        rate =  self.scaled_bitrate(val)
-                        print('Setting NET rate to', rate)
+                        rate =  self.scaled_bitrate(float(val))
+                        # print('Setting NET rate to', rate)
                 else:
                     break
                     
         except ConnectionRefusedError:
             print('Unable to connect')
+        except Exception as e:
+            print(e)
         finally:
             s.close()
+            print("Receiver rate", rate)
             return rate
 
     

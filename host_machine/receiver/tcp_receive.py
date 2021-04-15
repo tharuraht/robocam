@@ -14,6 +14,7 @@ class video_receiver:
     loop = GLib.MainLoop()
     Gst.init(None)
     rec_bitrate = 0
+    stream_started = False
 
     def __init__(self):
         with open("robocam_conf.json") as conf_file:
@@ -29,13 +30,20 @@ class video_receiver:
             print("GST ERROR", msg.parse_error())
             self.loop.quit()
             return
+        elif msg.type == Gst.MessageType.STREAM_START:
+            print("Stream Started!")
+            self.stream_started = True
         return True
 
     def update_bitrate(self, pipeline):
         self.rec_bitrate = rec_bitrate.get_bitrate(time=1)
         tcp_ip = self.conf['pi']['vpn_addr']
         tcp_port = self.conf['pi']['comms_port']
-        rec_bitrate.send_bitrate(tcp_ip, tcp_port, self.rec_bitrate)
+        if self.stream_started:
+            print(f"connecting to {tcp_ip} {tcp_port}")
+            rec_bitrate.send_bitrate(tcp_ip, tcp_port, self.rec_bitrate)
+        # print('Update finished')
+        return True
 
     def launch(self):
         pipeline = Gst.parse_launch(f"\
@@ -55,7 +63,7 @@ class video_receiver:
         bus = pipeline.get_bus()
         bus.add_watch(0, self.bus_call, self.loop)
 
-        GLib.timeout_add(3000, self.update_bitrate, pipeline)
+        GLib.timeout_add(5000, self.update_bitrate, pipeline)
 
         # run
         pipeline.set_state(Gst.State.PLAYING)

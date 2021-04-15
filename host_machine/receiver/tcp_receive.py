@@ -42,8 +42,8 @@ class video_receiver:
         if self.stream_started:
             print(f"connecting to {tcp_ip} {tcp_port}")
             rec_bitrate.send_bitrate(tcp_ip, tcp_port, self.rec_bitrate)
-        print('Update finished')
-        return False
+        # print('Update finished')
+        return True
 
     def launch(self):
         pipeline = Gst.parse_launch(f"\

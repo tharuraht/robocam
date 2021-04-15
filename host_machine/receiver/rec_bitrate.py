@@ -47,11 +47,15 @@ def get_bitrate(time=1):
   return rate
 
 def send_bitrate(tcp_ip, tcp_port, rate):
-  msg = f"[REC BITRATE] [{rate}]"
+  msg = f"REC_BITRATE:{rate}"
 
-  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  s.connect((tcp_ip, tcp_port))
-  s.send(msg)
+  try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((tcp_ip, tcp_port))
+    s.sendall(bytearray(msg, 'utf-8'))
+    s.close()
+  except ConnectionRefusedError:
+    print('Unable to connect')
 
 if __name__ == "__main__":
   while True:

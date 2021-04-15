@@ -67,6 +67,7 @@ class video_streamer:
         ! queue \
         ! rtph264pay config-interval=1 pt=96 \
         ! gdppay \
+        ! queue \
         ! tcpclientsink host={hostip} port=5000")
 
         if pipeline == None:

@@ -37,7 +37,7 @@ class video_receiver:
         return True
 
     def update_bitrate(self, pipeline):
-        self.rec_bitrate = rec_bitrate.get_bitrate(time=1)
+        self.rec_bitrate = rec_bitrate.get_bitrate(time=2)
         tcp_ip = self.conf['pi']['vpn_addr']
         tcp_port = self.conf['pi']['comms_port']
         if self.stream_started:

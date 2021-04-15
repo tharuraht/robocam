@@ -81,22 +81,27 @@ def calculate_bitrate(conf):
     print(f'Hosting server on port {tcp_port}')
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind(('', tcp_port))
     s.listen()
     print("Server is open to connections")
-    while True:
-        try:
-            conn, addr = s.accept()
-            # print("Connection address:", addr)
-            if addr[0] == conf['pi']['vpn_addr']:
-                # Measure bitrate and send to pi
-                rec_bitrate = rec_bitrate.get_bitrate(time=2)
-                msg = f"REC_BITRATE:{rec_bitrate}"
-                conn.sendall(bytearray(msg,'utf-8'))
-            else:
-                print(f'{addr} is not a valid source address')
-        finally:
-            conn.close()
+    try:
+        while True:
+            try:
+                conn, addr = s.accept()
+                # print("Connection address:", addr)
+                if addr[0] == conf['pi']['vpn_addr']:
+                    # Measure bitrate and send to pi
+                    rate = rec_bitrate.get_bitrate(time=2)
+                    msg = f"REC_BITRATE:{rate}"
+                    print('Sending', msg)
+                    conn.sendall(bytearray(msg,'utf-8'))
+                else:
+                    print(f'{addr} is not a valid source address')
+            finally:
+                conn.close()
+    finally:
+        s.close()
 
 
 

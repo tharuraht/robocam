@@ -6,6 +6,7 @@ from gi.repository import Gst, GLib
 import rec_bitrate
 import json
 from multiprocessing import Process
+import socket
 
 #hostname = '10.200.200.1'
 hostname = '0.0.0.0'
@@ -75,7 +76,7 @@ class video_receiver:
         pipeline.set_state(Gst.State.NULL)
 
 def calculate_bitrate(conf):
-    tcp_port = conf['pi']['comms_port']
+    tcp_port = conf['host']['comms_port']
 
     print(f'Hosting server on port {tcp_port}')
 
@@ -104,7 +105,7 @@ if __name__ == "__main__":
         conf = json.load(conf_file)
     
     rec = video_receiver(conf)
-    bitrate_proc = Process(target=calculate_bitrate, args=(conf))
+    bitrate_proc = Process(target=calculate_bitrate, args=(conf,))
     bitrate_proc.start()
 
     receiver_proc = Process(target=rec.launch())

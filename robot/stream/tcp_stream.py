@@ -5,7 +5,6 @@ import sys
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst, GLib
-from multiprocessing import Process
 import json
 import socket
 import os
@@ -41,16 +40,40 @@ class video_streamer:
         videosrc.set_property("bitrate", self.bitrate)
         # videosrc.set_property("annotation-text", "Bitrate %d" % (self.bitrate))
 
-        new_rate = 0
-        if os.path.exists('net_bitrate.tmp'):
-            with open('net_bitrate.tmp', 'r') as f:
-                val = f.read()
-                new_rate = self.scaled_bitrate(float(val))
+        new_rate = self.get_rec_bitrate()
         
         if new_rate and self.bitrate != new_rate:
             self.bitrate = new_rate
             print('Configured next bitrate set to', self.bitrate)
         return True
+
+    def get_rec_bitrate(self):
+        tcp_ip = self.conf['host']['vpn_addr']
+        tcp_port = self.conf['host']['comms_port']
+        buff_sz = 100
+
+        rate = 0
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect((tcp_ip, tcp_port))
+            while True:
+                data = s.recv(buff_sz)
+                if data:
+                    msg = data.decode('utf-8')
+                    # print('msg',msg)
+                    ctrl, val = msg.split(':')
+                    if ctrl == 'REC_BITRATE':
+                        rate =  self.scaled_bitrate(val)
+                        print('Setting NET rate to', rate)
+                else:
+                    break
+                    
+        except ConnectionRefusedError:
+            print('Unable to connect')
+        finally:
+            s.close()
+            return rate
+
     
     def scaled_bitrate(self, rate):
         return min(int(self.rate_scaling_factor*rate), GLib.MAXINT)
@@ -101,60 +124,9 @@ def write_bitrate(rate):
         f.write(rate)
 
 
-def bitrate_parser(conf):
-    #TODO send encrypted
-    tcp_ip = conf['pi']['vpn_addr']
-    tcp_port = conf['pi']['comms_port']
-
-    print(f'Hosting server on {tcp_ip}:{tcp_port}')
-
-    buffer_sz = 100
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('', tcp_port))
-    s.listen()
-    print("Server is open to connections")
-
-
-    while True:
-        try:
-            conn, addr = s.accept()
-            # print("Connection address:", addr)
-            if addr[0] == conf['host']['vpn_addr']:
-                while True:
-                    data=conn.recv(buffer_sz)
-                    if data:
-                        # print("Received data:", data)
-                        msg = data.decode('utf-8')
-                        # print('msg',msg)
-                        ctrl, val = msg.split(':')
-                        if ctrl == 'REC_BITRATE':
-                            print('Setting NET rate to', val)
-                            # streamer.set_new_bitrate(float(val))
-                            write_bitrate(val)
-
-                    else:
-                        break
-                    
-            else:
-                print(f'{addr} is not a valid source address')
-        finally:
-            conn.close()
-
-
-
 if __name__ == "__main__":
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
 
     streamer = video_streamer(conf)
-    comms_proc = Process(target=bitrate_parser, args=(conf,))
-    comms_proc.start()
-
-    streamer_proc = Process(target=streamer.launch())
-
-    streamer_proc.start()
-
-
-    streamer_proc.join()
-    comms_proc.terminate()
+    streamer.launch()

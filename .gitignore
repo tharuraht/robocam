@@ -34,5 +34,6 @@ udp_receive
 udp_stream
 
 .vscode
+*.tmp
 
 *__pycache__

@@ -48,7 +48,7 @@ class video_receiver:
 
     def launch(self):
         hostport = self.conf['host']['stream_rec_port']
-        pipeline = Gst.parse_launch(f"\
+        self.pipeline = Gst.parse_launch(f"\
         udpsrc port={hostport} name=src \
         ! gdpdepay \
         ! rtph264depay \
@@ -56,25 +56,29 @@ class video_receiver:
         ! videoconvert \
         ! autovideosink sync=false")
 
-        if pipeline == None:
+        if self.pipeline == None:
             print ("Failed to create pipeline")
             sys.exit(0)
 
         # watch for messages on the pipeline's bus (note that this will only
         # work like this when a GLib main loop is running)
-        bus = pipeline.get_bus()
+        bus = self.pipeline.get_bus()
         bus.add_watch(0, self.bus_call, self.loop)
 
         # GLib.timeout_add(5000, self.update_bitrate, pipeline)
 
         # run
-        pipeline.set_state(Gst.State.PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
         try:
             self.loop.run()
         except Exception as e:
             print(e)
+        
+        self.cleanup()
+    
+    def cleanup(self):
         # cleanup
-        pipeline.set_state(Gst.State.NULL)
+        self.pipeline.set_state(Gst.State.NULL)
 
 def calculate_bitrate(conf):
     tcp_port = conf['host']['comms_port']
@@ -111,11 +115,16 @@ if __name__ == "__main__":
         conf = json.load(conf_file)
     
     rec = video_receiver(conf)
-    bitrate_proc = Process(target=calculate_bitrate, args=(conf,))
-    bitrate_proc.start()
 
-    receiver_proc = Process(target=rec.launch())
-    receiver_proc.start()
+    try:
+      bitrate_proc = Process(target=calculate_bitrate, args=(conf,))
+      bitrate_proc.start()
 
-    receiver_proc.join()
-    bitrate_proc.terminate()
+      receiver_proc = Process(target=rec.launch())
+      receiver_proc.start()
+
+      receiver_proc.join()
+    finally:
+      receiver_proc.cleanup()
+      receiver_proc.terminate()
+      bitrate_proc.terminate()

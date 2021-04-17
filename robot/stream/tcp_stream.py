@@ -19,7 +19,7 @@ class video_streamer:
 
     def __init__(self, conf):
         self.conf = conf
-        self.bitrate = 2000000
+        self.bitrate = 200000
     
     def bus_call(self, bus, msg, *args):
         # print("BUSCALL", msg, msg.type, *args)

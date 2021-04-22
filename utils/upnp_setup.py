@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # https://github.com/miniupnp/miniupnp/blob/master/miniupnpc/testupnpigd.py
 # $Id: testupnpigd.py,v 1.7 2020/04/06 10:23:02 nanard Exp $
 # MiniUPnP project
@@ -42,7 +42,7 @@ class upnp_port():
       lanaddr = self.lanoverride
     else:
       lanaddr = self.u.lanaddr
-      lanaddr = '192.168.0.106'
+      lanaddr = '192.168.0.99'
 
     try:
       print('Discovering... delay=%ums' % self.u.discoverdelay)
@@ -72,7 +72,7 @@ class upnp_port():
       b = self.u.addportmapping(eport, self.mode, lanaddr, self.port,
                           'UPnP IGD Tester port %u' % eport, '')
       if b:
-        print('Success')
+        print('Success, bound to eport %0d' % eport)
         self.eport = eport
       else:
         print('Failed')
@@ -81,11 +81,14 @@ class upnp_port():
       print('Exception :', e)
 
   def close_port(self) -> bool:
-    b = self.u.deleteportmapping(self.eport, self.mode)
-    if b:
-      print('Successfully deleted port mapping')
+    if self.eport is not None:
+        b = self.u.deleteportmapping(self.eport, self.mode)
+        if b:
+            print('Successfully deleted port mapping')
+        else:
+            print('Failed to remove port mapping')
     else:
-      print('Failed to remove port mapping')
+        print("Port was not bound")
 
 
 def force_close(port, mode = 'TCP'):
@@ -105,9 +108,10 @@ def force_close(port, mode = 'TCP'):
 
 if __name__ == '__main__':
   #u = upnp_port(5002, 'TCP')
+  print(sys.argv)
   u_list = []
-  for i in range(len(sys.argv)):
-      u = upnp_port(sys.argv[i], 'UDP')
+  for i in range(1,len(sys.argv)):
+      u = upnp_port(int(sys.argv[i]), 'UDP')
       u_list.append(u)
   try:
     while True: pass
@@ -115,5 +119,6 @@ if __name__ == '__main__':
     print("CTRL-C exception!", details)
   #u.close_port()
   for u in u_list:
+      print("Closing port %0d" % u.port)
       u.close_port()
     

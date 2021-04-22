@@ -20,6 +20,14 @@ class video_receiver:
 
     def __init__(self, conf):
         self.conf = conf
+        hostport = self.conf['host']['stream_rec_port']
+        self.pipeline = Gst.parse_launch(f"\
+        udpsrc port={hostport} name=src \
+        ! gdpdepay \
+        ! rtph264depay \
+        ! avdec_h264 \
+        ! videoconvert \
+        ! autovideosink sync=false")
 
     def bus_call(self, bus, msg, *args):
         # print("BUSCALL", msg, msg.type, *args)
@@ -47,15 +55,7 @@ class video_receiver:
         return True
 
     def launch(self):
-        hostport = self.conf['host']['stream_rec_port']
-        self.pipeline = Gst.parse_launch(f"\
-        udpsrc port={hostport} name=src \
-        ! gdpdepay \
-        ! rtph264depay \
-        ! avdec_h264 \
-        ! videoconvert \
-        ! autovideosink sync=false")
-
+        print("Started GStreamer Receiver")
         if self.pipeline == None:
             print ("Failed to create pipeline")
             sys.exit(0)
@@ -72,59 +72,85 @@ class video_receiver:
         try:
             self.loop.run()
         except Exception as e:
-            print(e)
-        
+            print('Caught', e) 
         self.cleanup()
     
     def cleanup(self):
         # cleanup
         self.pipeline.set_state(Gst.State.NULL)
 
-def calculate_bitrate(conf):
-    tcp_port = conf['host']['comms_port']
+class bitrate_calc:
+    def __init__(self, conf):
+        self.conf = conf
+        self.run_comms_loop = True
 
-    print(f'Hosting server on port {tcp_port}')
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(('', tcp_port))
-    s.listen()
-    print("Server is open to connections")
-    try:
-        while True:
+    def launch(self):
+        tcp_port = self.conf['host']['comms_port']
+
+        print(f'Hosting server on port {tcp_port}')
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.s.settimeout(1.0)
+        self.s.bind(('', tcp_port))
+        self.s.listen()
+        print("Server is open to connections")
+        self.conn = None
+
+
+        while self.run_comms_loop:
             try:
-                conn, addr = s.accept()
-                # print("Connection address:", addr)
-                if addr[0] == conf['pi']['vpn_addr']:
-                    # Measure bitrate and send to pi
-                    rate = rec_bitrate.get_bitrate(time=2)
-                    msg = f"REC_BITRATE:{rate}"
-                    print('Sending', msg)
-                    conn.sendall(bytearray(msg,'utf-8'))
-                else:
-                    print(f'{addr} is not a valid source address')
-            finally:
-                conn.close()
-    finally:
-        s.close()
+                self.conn, addr = self.s.accept()
+            except socket.timeout as e:
+                continue
+            # print("Connection address:", addr)
+            if addr[0] == self.conf['pi']['vpn_addr']:
+                # Measure bitrate and send to pi
+                rate = rec_bitrate.get_bitrate(time=2)
+                msg = f"REC_BITRATE:{rate}"
+                print('Sending', msg)
+                self.conn.sendall(bytearray(msg,'utf-8'))
+            else:
+                print(f'{addr} is not a valid source address')
+            self.conn.close()
 
+        self.s.shutdown(1)
+        self.s.close()
+    #    except KeyboardInterrupt as k:
+    #        if conn is not None:
+    #            conn.close()
+    #        s.close()
+    #        throw(k)
+    #    finally:
+        # self.cleanup()
+    
+    def cleanup(self):
+        self.run_comms_loop = False
+    #     if self.conn is not None:
+    #         self.conn.close()
+    #     self.s.close()
 
+def launch(obj):
+    obj.launch()
 
 if __name__ == "__main__":
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
     
     rec = video_receiver(conf)
+    calc = bitrate_calc(conf)
 
     try:
-      bitrate_proc = Process(target=calculate_bitrate, args=(conf,))
-      bitrate_proc.start()
+        bitrate_proc = Process(target=calc.launch)
+        receiver_proc = Process(target=rec.launch)
 
-      receiver_proc = Process(target=rec.launch())
-      receiver_proc.start()
+        receiver_proc.start()
+        bitrate_proc.start()
 
-      receiver_proc.join()
-    finally:
-      receiver_proc.cleanup()
-      receiver_proc.terminate()
-      bitrate_proc.terminate()
+        #receiver_proc.join()
+    except Exception as e:
+        print(e)
+
+    print("Cleanup")
+    rec.cleanup()
+    calc.cleanup()

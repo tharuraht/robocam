@@ -72,8 +72,9 @@ class video_receiver:
             self.loop.run()
         except Exception as e:
             print(e)
-        # cleanup
-        pipeline.set_state(Gst.State.NULL)
+        finally:
+            # cleanup
+            pipeline.set_state(Gst.State.NULL)
 
 def calculate_bitrate(conf):
     tcp_port = conf['host']['comms_port']
@@ -87,6 +88,7 @@ def calculate_bitrate(conf):
     print("Server is open to connections")
     try:
         while True:
+            conn = None
             try:
                 conn, addr = s.accept()
                 # print("Connection address:", addr)
@@ -98,8 +100,11 @@ def calculate_bitrate(conf):
                     conn.sendall(bytearray(msg,'utf-8'))
                 else:
                     print(f'{addr} is not a valid source address')
-            finally:
                 conn.close()
+            finally:
+                if conn is not None:
+                    conn.close()
+                
     finally:
         s.close()
 

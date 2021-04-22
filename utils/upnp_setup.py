@@ -9,6 +9,7 @@
 # import the python miniupnpc module
 import miniupnpc
 import socket
+import sys
 
 class upnp_port():
   u = miniupnpc.UPnP()
@@ -103,10 +104,16 @@ def force_close(port, mode = 'TCP'):
   u.deleteportmapping(port, mode)
 
 if __name__ == '__main__':
-  u = upnp_port(5002, 'TCP')
+  #u = upnp_port(5002, 'TCP')
+  u_list = []
+  for i in range(len(sys.argv)):
+      u = upnp_port(sys.argv[i], 'UDP')
+      u_list.append(u)
   try:
     while True: pass
   except KeyboardInterrupt as details:
     print("CTRL-C exception!", details)
-  u.close_port()
+  #u.close_port()
+  for u in u_list:
+      u.close_port()
     

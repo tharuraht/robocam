@@ -38,7 +38,7 @@ class video_streamer:
     def set_bitrate(self, videosrc):
         print("Updating video bitrate to {0}".format(self.bitrate))
         videosrc.set_property("bitrate", self.bitrate)
-        # videosrc.set_property("annotation-text", "Bitrate %d" % (self.bitrate))
+        videosrc.set_property("annotation-text", "Bitrate %d  " % (self.bitrate))
 
         new_rate = self.get_rec_bitrate()
         

@@ -9,6 +9,7 @@ import json
 import socket
 import os
 
+bitrate_max = 2000000
 
 class video_streamer:
      # initialization
@@ -38,9 +39,9 @@ class video_streamer:
     def set_bitrate(self, videosrc):
         print("Updating video bitrate to {0}".format(self.bitrate))
         videosrc.set_property("bitrate", self.bitrate)
-        # videosrc.set_property("annotation-text", "Bitrate %d" % (self.bitrate))
+        videosrc.set_property("annotation-text", "Bitrate %d  " % (self.bitrate))
 
-        new_rate = self.get_rec_bitrate()
+        new_rate = min(self.get_rec_bitrate(),bitrate_max)
         
         if new_rate and self.bitrate != new_rate:
             self.bitrate = new_rate
@@ -56,7 +57,7 @@ class video_streamer:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((tcp_ip, tcp_port))
-            # print('connected')
+            print('connected')
             while True:
                 data = s.recv(buff_sz)
                 if data:
@@ -89,7 +90,7 @@ class video_streamer:
         hostport = self.conf['host']['stream_rec_port']
 
         pipeline = Gst.parse_launch(f"\
-        rpicamsrc preview=true rotation=180 annotation-mode=time+date name=src \
+        rpicamsrc preview=true keyframe-interval=5 rotation=180 annotation-mode=time+date+custom-text name=src \
         ! video/x-h264,{stream_params} \
         ! h264parse \
         ! queue \
@@ -118,9 +119,8 @@ class video_streamer:
             self.loop.run()
         except Exception as e:
             print(e)
-        finally:
-            # cleanup
-            pipeline.set_state(Gst.State.NULL)
+        # cleanup
+        pipeline.set_state(Gst.State.NULL)
 
 
 def write_bitrate(rate):
@@ -130,8 +130,10 @@ def write_bitrate(rate):
 
 
 if __name__ == "__main__":
+    print("Starting udp streamer")
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
-
+    print("Config JSON loaded")
     streamer = video_streamer(conf)
+    print("Starting streamer")
     streamer.launch()

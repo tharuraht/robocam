@@ -36,5 +36,6 @@ robocam_rec
 
 .vscode
 *.tmp
+*.log
 
 *__pycache__

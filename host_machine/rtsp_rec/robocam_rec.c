@@ -20,6 +20,7 @@
  */
 
 #include <gst/gst.h>
+#include <stdio.h>
 
 #include <gst/rtsp-server/rtsp-server.h>
 
@@ -33,6 +34,24 @@ static GOptionEntry entries[] = {
   {NULL}
 };
 
+static void write_stats(gint bitrate, gint jitter) {
+  FILE *fptr;
+
+  g_print("Writing stats");
+  fptr = fopen("rec_stats.tmp","w");
+
+  if(fptr == NULL)
+   {
+      g_warning("Unable to open file to write stats");
+      return;
+   }
+
+   fprintf(fptr, "%d,%d", bitrate, jitter);
+   fclose(fptr);
+   return;
+}
+
+
 /* called when a stream has received an RTCP packet from the client */
 static void
 on_ssrc_active (GObject * session, GObject * source, GstRTSPMedia * media)
@@ -44,10 +63,34 @@ on_ssrc_active (GObject * session, GObject * source, GstRTSPMedia * media)
   g_object_get (source, "stats", &stats, NULL);
   if (stats) {
     gchar *sstr;
+    guint64 bitrate =0;
+    guint jit = 0;
+    gboolean is_sender = FALSE;
 
     sstr = gst_structure_to_string (stats);
-    g_print ("structure: %s\n", sstr);
+
+    if (gst_structure_get_boolean(stats,"is-sender", &is_sender)) {
+      // g_print("is-sender= %d", *is_sender);
+      if (is_sender == TRUE) {
+        g_print ("structure: %s\n", sstr);
+        if (gst_structure_get_uint64 (stats, "bitrate", &bitrate) &&
+            gst_structure_get_uint(stats, "jitter", &jit))
+        {
+          g_print("bitrate: %d\n", bitrate);
+          g_print("jitter: %d\n", jit);
+          write_stats(bitrate, jit);
+        }
+      }
+      // g_free(is_sender);
+    }
+
     g_free (sstr);
+
+
+    
+    // if (jit != NULL) {
+    //   g_free(jit);
+    // }
 
     gst_structure_free (stats);
   }
@@ -61,16 +104,16 @@ on_sender_ssrc_active (GObject * session, GObject * source,
 
   GST_INFO ("source %p in session %p is active", source, session);
 
-  g_object_get (source, "stats", &stats, NULL);
-  if (stats) {
-    gchar *sstr;
+  // g_object_get (source, "stats", &stats, NULL);
+  // if (stats) {
+  //   gchar *sstr;
 
-    sstr = gst_structure_to_string (stats);
-    g_print ("Sender stats:\nstructure: %s\n", sstr);
-    g_free (sstr);
+  //   sstr = gst_structure_to_string (stats);
+  //   g_print ("Sender stats:\nstructure: %s\n", sstr);
+  //   g_free (sstr);
 
-    gst_structure_free (stats);
-  }
+  //   gst_structure_free (stats);
+  // }
 }
 
 /* signal callback when the media is prepared for streaming. We can get the

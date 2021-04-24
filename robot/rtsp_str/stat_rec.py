@@ -9,6 +9,7 @@ port = conf['pi']['comms_port']
 
 sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 sock.bind(('', port))
+print(f"Listening for RTCP Stats on port {port}")
 
 while True:
     data, addr = sock.recvfrom(1024)

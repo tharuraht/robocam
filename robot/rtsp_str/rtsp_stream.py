@@ -68,12 +68,14 @@ class video_streamer:
         return True
 
     def get_rec_stats(self):
-        with open("rec_stats.tmp","r") as f:
-            data = json.load(f)
-            if data['KEY'] == 'RTSP_STATS':
-                bitrate, jitter = data['PARAMS']
-                return int(bitrate),int(jitter)
-        return 0,0
+        try:
+            with open("rec_stats.tmp","r") as f:
+                data = json.load(f)
+                if data['KEY'] == 'RTSP_STATS':
+                    bitrate, jitter = data['PARAMS']
+                    return int(bitrate),int(jitter)
+        finally:
+            return 0,0
 
 
     def scaled_bitrate(self, rate, jitter):

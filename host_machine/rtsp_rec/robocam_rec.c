@@ -26,12 +26,6 @@
 
 #define DEFAULT_RTSP_PORT "5000"
 
-#define PIPELINE (rtpjitterbuffer drop-on-latency=true latency=0 name=depay0 \
-        ! rtph264depay \
-        ! avdec_h264 \
-        ! videoconvert \
-        ! autovideosink)"
-
 #define LATENCY 100
 
 static char *port = (char *) DEFAULT_RTSP_PORT;
@@ -207,8 +201,8 @@ main (int argc, char *argv[])
   factory = gst_rtsp_media_factory_new ();
   gst_rtsp_media_factory_set_transport_mode (factory,
       GST_RTSP_TRANSPORT_MODE_RECORD);
-  // gst_rtsp_media_factory_set_launch (factory, argv[1]);
-  gst_rtsp_media_factory_set_launch (factory, PIPELINE);
+  gst_rtsp_media_factory_set_launch (factory, argv[1]);
+  // gst_rtsp_media_factory_set_launch (factory, PIPELINE);
   gst_rtsp_media_factory_set_latency (factory, LATENCY); //tharu:lowered latency
 
   g_signal_connect (factory, "media-configure", (GCallback) media_configure_cb,factory);

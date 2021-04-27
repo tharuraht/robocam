@@ -10,13 +10,28 @@ import argparse
 import serial
 import os
 import sys
+from pathlib import Path
+import json
+import logging
+import select
 
-utils_path = os.path.join(os.getcwd(),'..','..','utils')
+# Import upnp_setup
+source_path = Path(__file__).resolve()
+source_dir = source_path.parent
+utils_path = os.path.join(source_dir,'..','..','utils')
 sys.path.insert(1, utils_path)
 import upnp_setup
 
-DEFAULT_UDP_IP = "0.0.0.0"
-DEFAULT_UDP_PORT = 5005
+# Fetch config
+with open(os.path.join(source_dir,'..','..','robocam_conf.json')) as f:
+    conf = json.load(f)
+
+# Configure Logger
+logging.basicConfig(format='%(filename)s:%(levelname)s:%(message)s', \
+    level=logging.getLevelName(conf['log_level']))
+
+DEFAULT_UDP_IP = ""
+DEFAULT_UDP_PORT = conf['pi']['control_port']
 
 parser = argparse.ArgumentParser(description="Receives control signals created by\
     host machine and relays to robot platform")
@@ -40,32 +55,41 @@ if args.port_forward:
 
 try:
     #Connect to Arduino serial port
-    print(f"Connecting to serial port {SER_PORT}")
+    logging.debug(f"Connecting to serial port {SER_PORT}")
     ser = serial.Serial(SER_PORT, 9800, timeout=1)
 except Exception as e:
-    print(e)
+    logging.exception(e)
     upnp.close_port()
     exit(1)
 
 time.sleep(1)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setblocking(0) # Make socket non-blocking
 sock.bind((UDP_IP, UDP_PORT))
+logging.info(f"Ready to receive at {UDP_IP}:{UDP_PORT}")
+
+timeout = 1 #500 ms
 
 misp="x,x"
 try:
   while True:
-    miss, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
-    print ("received message: ",miss)
-    if miss!=misp:
-        ser.write(miss)
-        misp=miss
+    ready = select.select([sock], [], [], timeout)
+    if ready[0]:
+
+        miss, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
+        logging.debug(f"received message: {miss}")
+        if miss!=misp:
+            ser.write(miss)
+            misp=miss
+        else:
+            # print ("stndby: ",miss)
+            pass
     else:
-        # print ("stndby: ",miss)
-        # pass
-        ser.write(0,0)
+        ser.write((0,0))
 except KeyboardInterrupt:
   ser.close()
   time.sleep(1)
-
-upnp.close_port()
+finally:
+    if args.port_forward:
+        upnp.close_port()

@@ -15,6 +15,7 @@ from gi.repository import GObject, Gst, GLib
 import json
 import socket
 import os
+import logging
 
 
 def percent_change(current, previous):
@@ -30,31 +31,32 @@ class video_streamer:
     loop = GLib.MainLoop()
     Gst.init(None)
     # bitrate = 0
-    rate_scaling_factor = 1.0
+    rate_scaling_factor = 1.2
 
     def __init__(self, conf):
         self.conf = conf
         self.bitrate = conf['pi']['starting_bitrate']
-        self.diff_threshold = 10
+        self.diff_threshold = 5
 
     def bus_call(self, bus, msg, *args):
         # print("BUSCALL", msg, msg.type, *args)
         if msg.type == Gst.MessageType.EOS:
-            print("End-of-stream")
+            logging.info("End-of-stream")
             self.loop.quit()
             return
         elif msg.type == Gst.MessageType.ERROR:
-            print("GST ERROR", msg.parse_error())
+            logging.error("GST ERROR", msg.parse_error())
             self.loop.quit()
             return
         elif msg.type == Gst.MessageType.STREAM_START:
-            print("Stream Started!")
+            logging.info("Stream Started!")
         return True
 
     def set_bitrate(self, videosrc):
         bitrate, jitter = self.get_rec_stats()
-
+        logging.debug(f"Receiver bitrate {bitrate} jitter {jitter}")
         new_rate = self.scaled_bitrate(bitrate, jitter)
+        logging.debug(f"New rate: {new_rate}")
 
         # Update if non-zero and more than threshold% different to previous
         if new_rate and percent_change(new_rate, self.bitrate) > self.diff_threshold:
@@ -62,7 +64,7 @@ class video_streamer:
             # print('Configured next bitrate set to', self.bitrate)
 
 
-            print("Updating video bitrate to {0}".format(self.bitrate))
+            logging.debug("Updating video bitrate to {0}".format(self.bitrate))
             videosrc.set_property("bitrate", self.bitrate)
             videosrc.set_property("annotation-text", "Bitrate %d  " % (self.bitrate))
         return True
@@ -71,21 +73,30 @@ class video_streamer:
         try:
             with open("rec_stats.tmp","r") as f:
                 data = json.load(f)
-                if data['KEY'] == 'RTSP_STATS':
+                #print("json data: %s" % data)
+                if data['KEY'] == 'RTCP_STATS':
                     bitrate, jitter = data['PARAMS']
+                    #print(int(bitrate),int(jitter))
                     return int(bitrate),int(jitter)
-        finally:
-            return 0,0
+        except Exception as e:
+            # print(e)
+            logging.warning(e)
+        
+        return 0,0
 
 
     def scaled_bitrate(self, rate, jitter):
         #TODO use jitter to drop even more?
 
-        #TODO get actual camsrc max rate
-        new_rate = min(int(self.rate_scaling_factor*rate), 20000000)
-
-        if jitter > 500:
-            new_rate = new_rate*0.8
+        new_rate = min(int(rate), 25000000)
+        
+        print("new rate before", new_rate)
+        if jitter > 300:
+            new_rate = int(new_rate/2)
+        else:
+            new_rate = int(new_rate*self.rate_scaling_factor)
+        
+        print("new rate after", new_rate)
         return new_rate
 
 
@@ -96,8 +107,8 @@ class video_streamer:
         stream_params = self.conf['pi']['stream_params']
 
         pipeline = Gst.parse_launch(f'\
-        rpicamsrc preview=false vflip=true annotation-mode=time+date name=src \
-        bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate}\" \
+        rpicamsrc preview=false vflip=true annotation-mode=time+date+custom-text name=src \
+        bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
         ! video/x-h264,{stream_params} \
         ! h264parse \
         ! queue \
@@ -116,7 +127,7 @@ class video_streamer:
         videosrc = pipeline.get_by_name ("src")
         # videosrc.set_property("bitrate", self.bitrate)
 
-        GLib.timeout_add(3000, self.set_bitrate, videosrc)
+        GLib.timeout_add(1000, self.set_bitrate, videosrc)
 
         # run
         pipeline.set_state(Gst.State.PLAYING)
@@ -132,6 +143,10 @@ class video_streamer:
 if __name__ == "__main__":
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
+    
+    # Configure Logger
+    logging.basicConfig(format='%(filename)s:%(levelname)s:%(message)s', \
+        level=logging.getLevelName(conf['log_level']))
 
     streamer = video_streamer(conf)
     streamer.launch()

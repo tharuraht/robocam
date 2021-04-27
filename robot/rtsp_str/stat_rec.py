@@ -13,6 +13,8 @@ print(f"Listening for RTCP Stats on port {port}")
 
 while True:
     data, addr = sock.recvfrom(1024)
-    print("received message: %s" % data)
+    data = data.decode('utf-8')
+    #TODO avoid spam
+    #print("received message: %s" % data)
     with open("rec_stats.tmp","w") as f:
         f.write(data)

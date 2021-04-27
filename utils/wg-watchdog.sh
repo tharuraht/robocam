@@ -4,18 +4,18 @@
 tries=0
 while [[ $tries -lt 3 ]]
 do
-        if /bin/ping -c 1 10.200.200.1
+        if /bin/ping -c 1 -i 1 10.200.200.1 #1s timeout
         then
-#               echo "wg working"
-                logger -n winterfell -i -t "wg-watchdog" -p user.notice "wireguard working"
+              echo "wg working"
+                # logger -n winterfell -i -t "wg-watchdog" -p user.notice "wireguard working"
                 exit 0
         fi
 ##      echo "wg fail"
         tries=$((tries+1))
 done
-#echo "restarting wg"
-sudo systemctl restart wg-quick@wg0
-logger -n winterfell -i -t "wg-watchdog" -p user.notice "wireguard restarted"
+echo "restarting wg"
+sudo systemctl restart wg-quick@wg0-client
+# logger -n winterfell -i -t "wg-watchdog" -p user.notice "wireguard restarted"
 
 #crontab entry
 #*/15 * * * * /home/mkasun/bin/wg-watchdog.sh

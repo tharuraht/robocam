@@ -3,9 +3,10 @@
   {
     "stream_rec_port": 5000,
     "stream_rec_intf": "wlp4s0",
-    "stream_hostname": "4grobo.zapto.org",
+    "stream_hostname": "77.101.164.194",
     "vpn_addr": "10.200.200.1",
-    "comms_port": 5001
+    "comms_port": 5001,
+    "gst_path": "/home/tharu/Downloads/gst-build/gst-env.py"
   },
   "pi":
   {
@@ -14,6 +15,8 @@
     "comms_port" : 5001,
     "stream_params" : "framerate=25/1,width=1280,height=720,profile=high",
     "starting_bitrate": 200000,
-    "fec_percentage": 5
-  }
+    "fec_percentage": 5,
+    "gst_path": "/home/pi/Downloads/gst-build/gst-env.py"
+  },
+  "log_level" : "DEBUG"
 }

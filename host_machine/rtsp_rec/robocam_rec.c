@@ -26,7 +26,7 @@
 
 #define DEFAULT_RTSP_PORT "5000"
 
-#define LATENCY 100
+#define LATENCY 20
 
 static char *port = (char *) DEFAULT_RTSP_PORT;
 

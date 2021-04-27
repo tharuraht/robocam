@@ -7,6 +7,7 @@ import json
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 import socket
+import os
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -69,6 +70,11 @@ period = 0.5
 
 with open("robocam_conf.json") as conf_file:
     conf = json.load(conf_file)
+
+# Wait until file created
+while not os.path.exists(path):
+  time.sleep(0.5)
+
 
 stats_file_handler = StatsFile(path,conf)
 observer = Observer()

@@ -8,13 +8,18 @@ import time
 import pygame
 import socket
 import argparse
+import json
 
-DEFAULT_UDP_PORT = 5005
+
+with open("robocam_conf.json") as conf_file:
+    conf = json.load(conf_file)
+    DEFAULT_UDP_PORT = conf['pi']['control_port']
+    DEFAULT_IP = conf['pi']['vpn_addr']
 
 # Define arguments
 parser = argparse.ArgumentParser(description="Sends control signals created by\
     video game controller")
-parser.add_argument('targetIP', type=str, help='IP address of target device')
+parser.add_argument('--targetIP', type=str, default=DEFAULT_IP, help='IP address of target device')
 parser.add_argument('--targetPort', type=str, default=DEFAULT_UDP_PORT,
     help='Target port to send to')
 

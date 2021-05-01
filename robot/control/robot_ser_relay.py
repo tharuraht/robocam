@@ -27,7 +27,7 @@ with open(os.path.join(source_dir,'..','..','robocam_conf.json')) as f:
     conf = json.load(f)
 
 # Configure Logger
-logging.basicConfig(format='%(filename)s:%(levelname)s:%(message)s', \
+logging.basicConfig(format='%(asctime)s:%(filename)s:%(levelname)s:%(message)s', \
     level=logging.getLevelName(conf['log_level']))
 
 DEFAULT_UDP_IP = ""

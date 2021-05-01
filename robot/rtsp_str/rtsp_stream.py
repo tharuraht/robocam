@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # #SERVER=4grobo.zapto.org
 # SERVER=10.200.200.1
 
@@ -5,7 +6,6 @@
 # 	video/x-h264, framerate=25/1, height=720, width=1280 ! h264parse ! \
 # 	rtspclientsink debug=true protocls=udp-mcast+udp location=rtsp://$SERVER:5000/test latency=0 ulpfec-percentage=10
 
-#!/usr/bin/python3
 # http://lifestyletransfer.com/how-to-launch-gstreamer-pipeline-in-python/
 
 import sys
@@ -37,6 +37,7 @@ class video_streamer:
         self.conf = conf
         self.bitrate = conf['pi']['starting_bitrate']
         self.diff_threshold = 5
+        self.old_recv_bitrate = 0
 
     def bus_call(self, bus, msg, *args):
         # print("BUSCALL", msg, msg.type, *args)
@@ -45,28 +46,31 @@ class video_streamer:
             self.loop.quit()
             return
         elif msg.type == Gst.MessageType.ERROR:
-            logging.error("GST ERROR", msg.parse_error())
+            logging.error("GST ERROR %s", msg.parse_error())
             self.loop.quit()
-            return
+            sys.exit(1)
         elif msg.type == Gst.MessageType.STREAM_START:
             logging.info("Stream Started!")
         return True
 
     def set_bitrate(self, videosrc):
         bitrate, jitter = self.get_rec_stats()
-        logging.debug(f"Receiver bitrate {bitrate} jitter {jitter}")
-        new_rate = self.scaled_bitrate(bitrate, jitter)
-        logging.debug(f"New rate: {new_rate}")
 
-        # Update if non-zero and more than threshold% different to previous
-        if new_rate and percent_change(new_rate, self.bitrate) > self.diff_threshold:
-            self.bitrate = new_rate
-            # print('Configured next bitrate set to', self.bitrate)
+        if bitrate != self.old_recv_bitrate:
+            logging.debug(f"Receiver bitrate {bitrate} jitter {jitter}")
+            new_rate = self.scaled_bitrate(bitrate, jitter)
+            # logging.debug(f"New rate: {new_rate}")
+
+            # Update if non-zero and more than threshold% different to previous
+            if new_rate and percent_change(new_rate, self.bitrate) > self.diff_threshold:
+                self.bitrate = new_rate
+                # print('Configured next bitrate set to', self.bitrate)
 
 
-            logging.debug("Updating video bitrate to {0}".format(self.bitrate))
-            videosrc.set_property("bitrate", self.bitrate)
-            videosrc.set_property("annotation-text", "Bitrate %d  " % (self.bitrate))
+                logging.debug("Updating video bitrate to {0}".format(self.bitrate))
+                videosrc.set_property("bitrate", self.bitrate)
+                videosrc.set_property("annotation-text", "Bitrate %d  " % (self.bitrate))
+        self.old_recv_bitrate = bitrate
         return True
 
     def get_rec_stats(self):
@@ -90,13 +94,13 @@ class video_streamer:
 
         new_rate = min(int(rate), 25000000)
         
-        print("new rate before", new_rate)
+        logging.debug("new rate before %0d" % new_rate)
         if jitter > 300:
             new_rate = int(new_rate/2)
         else:
             new_rate = int(new_rate*self.rate_scaling_factor)
         
-        print("new rate after", new_rate)
+        logging.debug("new rate after %0d" % new_rate)
         return new_rate
 
 
@@ -112,7 +116,7 @@ class video_streamer:
         ! video/x-h264,{stream_params} \
         ! h264parse \
         ! queue \
-        ! rtspclientsink debug=true protocls=udp-mcast+udp \
+        ! rtspclientsink debug=false protocols=udp-mcast+udp \
         location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec}')
 
         if pipeline == None:
@@ -145,8 +149,9 @@ if __name__ == "__main__":
         conf = json.load(conf_file)
     
     # Configure Logger
-    logging.basicConfig(format='%(filename)s:%(levelname)s:%(message)s', \
+    logging.basicConfig(format='%(asctime)s:%(filename)s:%(levelname)s:%(message)s', \
         level=logging.getLevelName(conf['log_level']))
 
     streamer = video_streamer(conf)
     streamer.launch()
+    print("FINSIHED")

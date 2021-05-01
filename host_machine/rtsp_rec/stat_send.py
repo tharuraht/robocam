@@ -8,6 +8,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 import socket
 import os
+import logging
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -60,7 +61,7 @@ class StatsFile(FileSystemEventHandler):
       addr = conf['pi']['vpn_addr']
       port = conf['pi']['comms_port']
       sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-      print("Sending %s\nto %s:%s" % (data,addr,port))
+      logging.debug("Sending %s\nto %s:%s" % (data,addr,port))
       sock.sendto(data.encode('utf-8'),(addr, port))
 
 
@@ -70,6 +71,10 @@ period = 0.5
 
 with open("robocam_conf.json") as conf_file:
     conf = json.load(conf_file)
+
+# Configure Logger
+logging.basicConfig(format='%(asctime)s:%(filename)s:%(levelname)s:%(message)s', \
+    level=logging.getLevelName(conf['log_level']))
 
 # Wait until file created
 while not os.path.exists(path):

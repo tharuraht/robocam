@@ -10,20 +10,22 @@ trap 'kill 0' EXIT
 
 function open_upnp {
 echo "Opening upnp ports"
-  res=$(lsof -i4 -n | grep robo | grep UDP) 
 
-# while true
-# do
+res=$(lsof -i4 -n | grep robo | grep UDP) 
+while true
+do
   while  [ -z "$res" ]
   do
-  res=$(lsof -i4 -n | grep robo | grep UDP) 
-  sleep 1 # wait a second
+    res=$(lsof -i4 -n | grep robo | grep UDP) 
+    sleep 0.5 # wait half a second
   done
   # echo "found it!"
   # echo $res
-
   python3 upnp_rtsp.py "SETUP" "$res"
-# done
+
+  res=""
+  sleep 1
+done
 }
 
 function close_upnp {

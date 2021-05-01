@@ -4,14 +4,6 @@ import sys
 import os
 import csv
 
-assert len(sys.argv) <= 3
-print(sys.argv)
-
-mode = sys.argv[1]
-
-if len(sys.argv) == 3:
-  output = sys.argv[2]
-
 def log_ports(ports):
   # Log the open ports
   with open("open_ports.tmp", 'w', newline='') as f:
@@ -22,30 +14,20 @@ def get_logged_ports():
   with open('open_ports.tmp', newline='') as f:
     reader = csv.reader(f)
     data = list(reader)
-    return data
+    flat_data = [item for sublist in data for item in sublist]
+    return flat_data
 
-if mode == 'SETUP':
-  print ('setup')
 
-  #TODO check if file already there
-  port_lines = output.splitlines()
-
-  ports = []
-  for line in port_lines:
-    port = line.split(':')[1].strip()
-    print("port",port)
-    ports.append(int(port))
-
-  print(ports)
+def open_ports(ports):
   u = miniupnpc.UPnP()
   u.discoverdelay = 200
   mode = 'UDP'
 
 
   try:
-    print('Discovering... delay=%ums' % u.discoverdelay)
+    # print('Discovering... delay=%ums' % u.discoverdelay)
     ndevices = u.discover()
-    print(ndevices, 'device(s) detected')
+    # print(ndevices, 'device(s) detected')
 
     # select an igd
     u.selectigd()
@@ -66,8 +48,8 @@ if mode == 'SETUP':
       #   eport = eport + 1
       #   r = u.getspecificportmapping(eport, mode)
 
-      print('trying to redirect %s port %u => %s port %u %s' % (\
-      u.externalipaddress, eport, u.lanaddr, port, mode))
+      # print('trying to redirect %s port %u => %s port %u %s' % (\
+      # u.externalipaddress, eport, u.lanaddr, port, mode))
 
       b = u.addportmapping(eport, mode, u.lanaddr, port,
                           'UPnP IGD Tester port %u' % eport, '')
@@ -81,28 +63,73 @@ if mode == 'SETUP':
   except Exception as e:
     print('Exception :', e)
 
-elif mode == 'CLOSE':
-  print('close')
-
+def close_ports():
   if os.path.exists('open_ports.tmp'):
-    port_lines = get_logged_ports()
+    ports = get_logged_ports()
 
-    print ("Closing: ", port_lines)
+    print ("Closing: ", ports)
   
     u = miniupnpc.UPnP()
     u.discoverdelay = 200
-    print('Discovering... delay=%ums' % u.discoverdelay)
+    # print('Discovering... delay=%ums' % u.discoverdelay)
     ndevices = u.discover()
-    print(ndevices, 'device(s) detected')
+    # print(ndevices, 'device(s) detected')
 
     # select an igd
     u.selectigd()
 
-    for ports in port_lines:
-      for port in ports:
-        print("Releasing port",port)
-        u.deleteportmapping(int(port), 'UDP')
+    for port in ports:
+      # print("Releasing port",port)
+      u.deleteportmapping(int(port), 'UDP')
     
     os.remove('open_ports.tmp')
   else:
     print("No open ports file")
+
+
+if __name__ == '__main__':
+
+  assert len(sys.argv) <= 3
+  # print(sys.argv)
+
+  mode = sys.argv[1]
+
+  if len(sys.argv) == 3:
+    output = sys.argv[2]
+
+
+  if mode == 'SETUP':
+    print ('Setting up RTSP upnp ports...')
+    
+    port_lines = output.splitlines()
+
+    ports = []
+    for line in port_lines:
+      port = line.split(':')[1].strip()
+      # print("port",port)
+      ports.append(int(port))
+
+    print(ports)
+
+    #If file exists, check old ports first
+    if os.path.exists('open_ports.tmp'):
+      print ("File found checking...")
+      old_ports = get_logged_ports()
+
+      old_ports = list(map(int, old_ports)) # converts strings to ints
+      # print(set(ports), set(old_ports))
+      if set(ports) != set(old_ports):
+        print('New ports defined, removing old ports...')
+        close_ports()
+        open_ports(ports)
+      else:
+        print("Same ports, no change needed")
+    else:
+      open_ports(ports)
+
+
+  elif mode == 'CLOSE':
+    print('close')
+    close_ports()
+  else:
+    raise Exception("Invalid Mode")

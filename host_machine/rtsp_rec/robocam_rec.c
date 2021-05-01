@@ -39,7 +39,7 @@ static GOptionEntry entries[] = {
 static void write_stats(gint bitrate, gint jitter) {
   FILE *fptr;
 
-  g_print("Writing stats");
+  // g_print("Writing stats\n");
   fptr = fopen("rec_stats.tmp","w");
 
   if(fptr == NULL)
@@ -74,12 +74,12 @@ on_ssrc_active (GObject * session, GObject * source, GstRTSPMedia * media)
     if (gst_structure_get_boolean(stats,"is-sender", &is_sender)) {
       // g_print("is-sender= %d", *is_sender);
       if (is_sender == TRUE) {
-        g_print ("structure: %s\n", sstr);
+        // g_print ("structure: %s\n", sstr);
         if (gst_structure_get_uint64 (stats, "bitrate", &bitrate) &&
             gst_structure_get_uint(stats, "jitter", &jit))
         {
-          g_print("bitrate: %d\n", bitrate);
-          g_print("jitter: %d\n", jit);
+          // g_print("bitrate: %d\n", bitrate);
+          // g_print("jitter: %d\n", jit);
           write_stats(bitrate, jit);
         }
       }

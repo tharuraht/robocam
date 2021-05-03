@@ -64,6 +64,7 @@ class video_streamer:
             # Update if non-zero and more than threshold% different to previous
             if new_rate and percent_change(new_rate, self.bitrate) > self.diff_threshold:
                 self.bitrate = new_rate
+                # self.bitrate = 1000000
                 # print('Configured next bitrate set to', self.bitrate)
 
 
@@ -94,13 +95,17 @@ class video_streamer:
 
         new_rate = min(int(rate), 25000000)
         
-        logging.debug("new rate before %0d" % new_rate)
-        if jitter > 300:
-            new_rate = int(new_rate/2)
-        else:
+        # logging.debug("new rate before %0d" % new_rate)
+        # if jitter > 300:
+        #     new_rate = int(new_rate/2)
+        # else:
+        #     new_rate = int(new_rate*self.rate_scaling_factor)
+        if jitter < 300:
             new_rate = int(new_rate*self.rate_scaling_factor)
+        else:
+            new_rate = int(new_rate/2)
         
-        logging.debug("new rate after %0d" % new_rate)
+        # logging.debug("new rate after %0d" % new_rate)
         return new_rate
 
 
@@ -116,7 +121,7 @@ class video_streamer:
         ! video/x-h264,{stream_params} \
         ! h264parse \
         ! queue \
-        ! rtspclientsink debug=false protocols=udp-mcast+udp \
+        ! rtspclientsink debug=true protocols=udp-mcast+udp \
         location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec}')
 
         if pipeline == None:

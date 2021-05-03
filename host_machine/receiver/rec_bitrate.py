@@ -8,19 +8,23 @@ import signal
 import json
 import socket
 
-def get_bitrate(time=1):
+def get_bitrate(time=1,port=None):
   pcap_file = 'tshark_stat.pcap'
 
   with open("robocam_conf.json") as conf_file:
     conf = json.load(conf_file)
-    host_rec_port = conf["host"]["stream_rec_port"]
-    host_rec_inf = conf["host"]["stream_rec_intf"] 
+    if port is None:
+      host_rec_port = conf["host"]["stream_rec_port"]
+    else:
+      host_rec_port = port
+    host_rec_intf = conf["host"]["stream_rec_intf"] 
 
+  # print(host_rec_port, host_rec_intf)
   rate = 0
   os.setpgrp() # create process group, for cleanup later
   try:
     capture = pyshark.LiveCapture(
-      interface = host_rec_inf, 
+      interface = host_rec_intf, 
       output_file = pcap_file,
       only_summaries=True,
       bpf_filter = f'dst port {host_rec_port}'
@@ -59,4 +63,4 @@ def send_bitrate(tcp_ip, tcp_port, rate):
 
 if __name__ == "__main__":
   while True:
-    get_bitrate(1)
+    get_bitrate(1,47084)

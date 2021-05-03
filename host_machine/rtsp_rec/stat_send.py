@@ -10,9 +10,6 @@ import socket
 import os
 import logging
 
-# logging.basicConfig(level=logging.DEBUG)
-
-
 class StatsFile(FileSystemEventHandler):
     def __init__(self, path, conf):
       super().__init__()

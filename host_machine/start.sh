@@ -42,7 +42,7 @@ fi
 
 python3 stat_send.py &            # RTCP Stat Sender
 $GST_PATH  $RTSP_PATH/robocam_rec " \
-      (rtpjitterbuffer drop-on-latency=true latency=0 name=depay0 ! rtph264depay \
+      (rtph264depay name=depay0 \
       ! avdec_h264 \
       ! videoconvert \
       ! autovideosink)" &         # RTSP Streamer

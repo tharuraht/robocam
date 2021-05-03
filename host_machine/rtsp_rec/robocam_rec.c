@@ -26,7 +26,7 @@
 
 #define DEFAULT_RTSP_PORT "5000"
 
-#define LATENCY 20
+#define LATENCY 100
 
 static char *port = (char *) DEFAULT_RTSP_PORT;
 
@@ -68,6 +68,7 @@ on_ssrc_active (GObject * session, GObject * source, GstRTSPMedia * media)
     guint64 bitrate =0;
     guint jit = 0;
     gboolean is_sender = FALSE;
+    gint lost = 0;
 
     sstr = gst_structure_to_string (stats);
 
@@ -82,6 +83,10 @@ on_ssrc_active (GObject * session, GObject * source, GstRTSPMedia * media)
           // g_print("jitter: %d\n", jit);
           write_stats(bitrate, jit);
         }
+        if (gst_structure_get_int(stats, "packets-lost", &lost)) {
+          g_print("packets lost: %d\n", lost);
+        }
+        
       }
       // g_free(is_sender);
     }

@@ -16,28 +16,66 @@ import json
 import socket
 import os
 import logging
+from enum import Enum
 
+# Gst.debug_set_active(True)
+# Gst.debug_set_default_threshold(3)
 
-def percent_change(current, previous):
-    if current == previous:
-        return 100.0
-    try:
-        return (abs(current - previous) / previous) * 100.0
-    except ZeroDivisionError:
-        return 0
+class Video_params:
+    temporal_res = [10,15,25,30,35]
+    spatial_res = [100000, 300000, 600000, 1000000, 2000000, 5000000]
+
+    def __init__(self):
+        self.cur_temp_idx = 3
+        self.cur_spatial_idx = 1
+    
+    def get_temporal_res(self):
+        return self.temporal_res[self.cur_temp_idx]
+
+    def get_spatial_res(self):
+        return self.spatial_res[self.cur_spatial_idx]
+    
+    def change_params(self,temporal=0,spatial=0):
+        """
+        Changes the temporal and/or spatial parameters by increment/decrement
+
+        +1 : increment
+        0  : no change
+        -1 : decrement
+        """
+        if temporal == 1:
+            if self.cur_temp_idx < len(self.temporal_res)-1:
+                self.cur_temp_idx += 1
+        elif temporal == -1:
+            if self.cur_temp_idx > 0:
+                self.cur_temp_idx -= 1
+
+        if spatial == 1:
+            if self.cur_spatial_idx < len(self.spatial_res)-1:
+                self.cur_spatial_idx += 1
+        elif spatial == -1:
+            if self.cur_spatial_idx > 0:
+                self.cur_spatial_idx -= 1
+        return
+        
+class Status(Enum):
+  Stable = 1
+  Fluctuated = 2
+  Degraded = 3
+  Non_Monotonic = 4
+  Progressive = 5
 
 class video_streamer:
      # initialization
     loop = GLib.MainLoop()
     Gst.init(None)
-    # bitrate = 0
-    rate_scaling_factor = 1.2
+    params = Video_params()
+
 
     def __init__(self, conf):
         self.conf = conf
         self.bitrate = conf['pi']['starting_bitrate']
-        self.diff_threshold = 5
-        self.old_recv_bitrate = 0
+        self.caps = self.conf['pi']['stream_params']
 
     def bus_call(self, bus, msg, *args):
         # print("BUSCALL", msg, msg.type, *args)
@@ -53,67 +91,94 @@ class video_streamer:
             logging.info("Stream Started!")
         return True
 
-    def set_bitrate(self, videosrc):
-        bitrate, jitter = self.get_rec_stats()
+    def update_framerate(self, rate):
+        splits = self.caps.split(",")
 
-        if bitrate != self.old_recv_bitrate:
-            logging.debug(f"Receiver bitrate {bitrate} jitter {jitter}")
-            new_rate = self.scaled_bitrate(bitrate, jitter)
-            # logging.debug(f"New rate: {new_rate}")
+        for i in range (len(splits)):
+            if "framerate" in splits[i]:
+                splits[i] = f"framerate={rate}/1"
+        self.caps = ",".join(splits)
 
-            # Update if non-zero and more than threshold% different to previous
-            if new_rate and percent_change(new_rate, self.bitrate) > self.diff_threshold:
-                self.bitrate = new_rate
-                # print('Configured next bitrate set to', self.bitrate)
+    def get_status(self):
+        #TODO get bitrate
+        bitrate = []
+        status = None
 
 
-                logging.debug("Updating video bitrate to {0}".format(self.bitrate))
-                videosrc.set_property("bitrate", self.bitrate)
-                videosrc.set_property("annotation-text", "Bitrate %d  " % (self.bitrate))
-        self.old_recv_bitrate = bitrate
+        tcp_ip = self.conf['host']['vpn_addr']
+        tcp_port = self.conf['host']['comms_port']
+        buff_sz = 100
+
+        rate = 0
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((tcp_ip, tcp_port))
+        logging.debug('connected')
+        while True:
+            data = s.recv(buff_sz)
+            if data:
+                msg = data.decode('utf-8')
+                print('msg',msg)
+                dict = json.loads(msg)
+                if dict['KEY'] == 'BITRATE_STATE':
+                    status, bitrate = dict['PARAMS']
+            else:
+                break
+        
+        return status, bitrate
+    
+    def parse_status(self):
+        status, bitrate = self.get_status()
+        print("Received Status: %s" % status)
+
+        if status == str(Status.Progressive):
+            #Increase bitrate and framerate
+            self.params.change_params(temporal=1, spatial=1)
+        elif status == str(Status.Stable):
+            #TODO Increase temporal resolution
+            self.params.change_params(temporal=1, spatial=0)
+        elif status == str(Status.Fluctuated):
+            #TODO do nothing
+            pass
+        elif status == str(Status.Degraded):
+            # reduce both spatial and temporal res
+            self.params.change_params(temporal=-1, spatial=-1)
+        else:
+            # Wait for next feedback to make change
+            pass
+        
+        return
+
+    def set_bitrate(self, videosrc, videocaps):
+
+        self.parse_status()
+
+        framerate = self.params.get_temporal_res()
+        self.update_framerate(framerate)
+
+        self.bitrate = self.params.get_spatial_res()
+        # logging.debug(self.caps)
+        logging.debug(videocaps.get_property("caps").to_string())
+        videocaps.set_property("caps", Gst.Caps.from_string(self.caps))
+
+        # logging.debug(videosrc.set_caps())
+        
+        logging.debug("Updating video bitrate to {0}".format(self.bitrate))
+        videosrc.set_property("bitrate", self.bitrate)
+        videosrc.set_property("annotation-text", "Bitrate %d Framerate %d   " % 
+            (self.bitrate, framerate))
         return True
 
-    def get_rec_stats(self):
-        try:
-            with open("rec_stats.tmp","r") as f:
-                data = json.load(f)
-                #print("json data: %s" % data)
-                if data['KEY'] == 'RTCP_STATS':
-                    bitrate, jitter = data['PARAMS']
-                    #print(int(bitrate),int(jitter))
-                    return int(bitrate),int(jitter)
-        except Exception as e:
-            # print(e)
-            logging.warning(e)
-        
-        return 0,0
-
-
-    def scaled_bitrate(self, rate, jitter):
-        #TODO use jitter to drop even more?
-
-        new_rate = min(int(rate), 25000000)
-        
-        logging.debug("new rate before %0d" % new_rate)
-        if jitter > 300:
-            new_rate = int(new_rate/2)
-        else:
-            new_rate = int(new_rate*self.rate_scaling_factor)
-        
-        logging.debug("new rate after %0d" % new_rate)
-        return new_rate
 
 
     def launch(self):
         hostip = self.conf['host']['stream_hostname']
         hostport = self.conf['host']['stream_rec_port']
         fec = self.conf['pi']['fec_percentage']
-        stream_params = self.conf['pi']['stream_params']
 
         pipeline = Gst.parse_launch(f'\
         rpicamsrc preview=false vflip=true annotation-mode=time+date+custom-text name=src \
         bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
-        ! video/x-h264,{stream_params} \
+        ! capsfilter caps={self.caps} name=caps \
         ! h264parse \
         ! queue \
         ! rtspclientsink debug=false protocols=udp-mcast+udp \
@@ -128,10 +193,10 @@ class video_streamer:
         bus = pipeline.get_bus()
         bus.add_watch(0, self.bus_call, self.loop)
 
-        videosrc = pipeline.get_by_name ("src")
-        # videosrc.set_property("bitrate", self.bitrate)
+        videosrc = pipeline.get_by_name("src")
+        videocaps = pipeline.get_by_name("caps")
 
-        GLib.timeout_add(1000, self.set_bitrate, videosrc)
+        GLib.timeout_add(1000, self.set_bitrate, videosrc, videocaps)
 
         # run
         pipeline.set_state(Gst.State.PLAYING)

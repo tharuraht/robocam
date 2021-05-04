@@ -4,21 +4,32 @@ gi.require_version('GstRtspServer', '1.0')
 from gi.repository import Gst, GLib, GObject, GstRtspServer
 
 Gst.init(None)
-
-
-def tmp(factory):
-  print('hi')
-  print(factory.__dict__)
-
+Gst.debug_set_active(True)
+# Gst.debug_set_default_threshold(3)
 
 class RTSP_Server:
   port = "5000"
   mount_point = "/test"
+  latency = 100
 
-  PIPELINE = "rtpjitterbuffer drop-on-latency=true latency=0 name=depay0 ! rtph264depay \
-        ! avdec_h264 \
-        ! videoconvert \
-        ! autovideosink"
+  PIPELINE = "\
+  rtph264depay name=depay0\
+  ! avdec_h264 \
+  ! videoconvert \
+  ! autovideosink"
+
+  def on_ssrc_active(self, session, source):
+
+    stats = source.get_property("stats")
+    is_sender = stats.get_boolean("is-sender")
+    # print(is_sender)
+    if is_sender[1]:
+      bitrate = stats.get_uint64("bitrate")
+      jitter = stats.get_uint("jitter")
+      # print(bitrate[1],jitter[1])
+      data = f"{bitrate[1]},{jitter[1]}"
+      with open("rec_stats.tmp","w") as f:
+        f.write(data)
 
   def media_prepared_cb(self, media):
     n_streams = media.n_streams()
@@ -33,24 +44,23 @@ class RTSP_Server:
       session = stream.get_rtpsession()
       print("Watching session %s on stream %0d" % (session,i))
 
-      session.connect("on-ssrc-active", on_ssrc_active)
+      session.connect("on-ssrc-active", self.on_ssrc_active)
 
   def media_configure_cb(self, factory, media):
-    media.connect("prepared", media_prepared_cb)
+    media.connect("prepared", self.media_prepared_cb)
 
   
   def factory_setup(self):
     factory = GstRtspServer.RTSPMediaFactory.new()
     factory.set_transport_mode(GstRtspServer.RTSPTransportMode.RECORD)
     factory.set_launch(self.PIPELINE)
-    # factory.latency = 0
-    # print(factory.__dict__)
+    factory.set_latency(self.latency)
 
     #Callback to start tracing once media is prepared for streaming
     factory.connect("media-configure", self.media_configure_cb)
     return factory
 
-  def launch():
+  def launch(self):
     server = GstRtspServer.RTSPServer.new()
     server.set_service(self.port)
     mounts = server.get_mount_points()
@@ -61,7 +71,11 @@ class RTSP_Server:
     server.attach()
 
     #  start serving
-    print ("stream ready at rtsp://127.0.0.1:" + port + "/test");
+    print ("stream ready at rtsp://127.0.0.1:" + self.port + "/test");
 
     loop = GLib.MainLoop()
     loop.run()
+
+if __name__ == '__main__':
+  server = RTSP_Server()
+  server.launch()

@@ -40,12 +40,9 @@ then
 fi
 
 
-python3 stat_send.py &            # RTCP Stat Sender
-$GST_PATH  $RTSP_PATH/robocam_rec " \
-      (rtpjitterbuffer drop-on-latency=true latency=0 name=depay0 ! rtph264depay \
-      ! avdec_h264 \
-      ! videoconvert \
-      ! autovideosink)" &         # RTSP Streamer
+# python3 stat_send.py &            # RTCP Stat Sender
+python3 ps_bitrate.py &
+$GST_PATH python3 $RTSP_PATH/../receiver/rtsp_server.py  &         # RTSP Streamer
 open_upnp &                       # Upnp port generator
 python3 $ROBOCAM_DIR/host_machine/control/robot_joy_udp.py & # Robot platform controller
 wait

@@ -46,11 +46,14 @@ class StatsFile(FileSystemEventHandler):
             self.prev_data = data
     
     def json_dump(self,data):
+      t = time.localtime()
+      current_time = time.strftime("%H:%M:%S", t)
       dump_dict = {
         'KEY' :     'RTCP_STATS',
         'PARAMS':   data.split(','),
         'PROTOCOL': 'UDP',
-        'DESC':     "RTSP Server Bitrate and Jitter to inform bitrate and fps of Rpi."   
+        'DESC':     "RTSP Server Bitrate and Jitter to inform bitrate and fps of Rpi."
+        'TIMESTAMP': current_time   
       }
       return json.dumps(dump_dict)
     

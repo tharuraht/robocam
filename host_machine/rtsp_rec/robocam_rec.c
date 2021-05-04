@@ -26,7 +26,7 @@
 
 #define DEFAULT_RTSP_PORT "5000"
 
-#define LATENCY 20
+#define LATENCY 100
 
 static char *port = (char *) DEFAULT_RTSP_PORT;
 
@@ -162,25 +162,27 @@ main (int argc, char *argv[])
   GstRTSPServer *server;
   GstRTSPMountPoints *mounts;
   GstRTSPMediaFactory *factory;
-  GOptionContext *optctx;
+  // GOptionContext *optctx;
   GError *error = NULL;
 
-  optctx = g_option_context_new ("<launch line> - Test RTSP Server, Launch\n\n"
-      "Example: \"( decodebin name=depay0 ! autovideosink )\"");
-  g_option_context_add_main_entries (optctx, entries, NULL);
-  g_option_context_add_group (optctx, gst_init_get_option_group ());
-  if (!g_option_context_parse (optctx, &argc, &argv, &error)) {
-    g_printerr ("Error parsing options: %s\n", error->message);
-    g_option_context_free (optctx);
-    g_clear_error (&error);
-    return -1;
-  }
+  // optctx = g_option_context_new ("<launch line> - Test RTSP Server, Launch\n\n"
+  //     "Example: \"( decodebin name=depay0 ! autovideosink )\"");
+  // g_option_context_add_main_entries (optctx, entries, NULL);
+  // g_option_context_add_group (optctx, gst_init_get_option_group ());
+  // if (!g_option_context_parse (optctx, &argc, &argv, &error)) {
+  //   g_printerr ("Error parsing options: %s\n", error->message);
+  //   g_option_context_free (optctx);
+  //   g_clear_error (&error);
+  //   return -1;
+  // }
 
-  if (argc < 2) {
-    g_print ("%s\n", g_option_context_get_help (optctx, TRUE, NULL));
-    return 1;
-  }
-  g_option_context_free (optctx);
+  // if (argc < 2) {
+  //   g_print ("%s\n", g_option_context_get_help (optctx, TRUE, NULL));
+  //   return 1;
+  // }
+  // g_option_context_free (optctx);
+
+  gst_init (&argc, &argv);
 
   loop = g_main_loop_new (NULL, FALSE);
 
@@ -201,8 +203,11 @@ main (int argc, char *argv[])
   factory = gst_rtsp_media_factory_new ();
   gst_rtsp_media_factory_set_transport_mode (factory,
       GST_RTSP_TRANSPORT_MODE_RECORD);
-  gst_rtsp_media_factory_set_launch (factory, argv[1]);
-  // gst_rtsp_media_factory_set_launch (factory, PIPELINE);
+  // gst_rtsp_media_factory_set_launch (factory, argv[1]);
+  gst_rtsp_media_factory_set_launch (factory, "( rtph264depay name=depay0 \
+  ! avdec_h264 ! videoconvert \
+  ! clockoverlay text=\"Current Time\" valignment=bottom halignment=left shaded-background=true \
+  ! queue ! autovideosink )");
   gst_rtsp_media_factory_set_latency (factory, LATENCY); //tharu:lowered latency
 
   g_signal_connect (factory, "media-configure", (GCallback) media_configure_cb,factory);
@@ -218,9 +223,9 @@ main (int argc, char *argv[])
 
   /* start serving */
   g_print ("stream ready at rtsp://127.0.0.1:%s/test\n", port);
-  g_print ("On the sender, send a stream with rtspclientsink:\n"
-      "  gst-launch-1.0 videotestsrc ! x264enc ! rtspclientsink location=rtsp://127.0.0.1:%s/test\n",
-      port);
+  // g_print ("On the sender, send a stream with rtspclientsink:\n"
+  //     "  gst-launch-1.0 videotestsrc ! x264enc ! rtspclientsink location=rtsp://127.0.0.1:%s/test\n",
+  //     port);
   g_main_loop_run (loop);
 
   return 0;

@@ -5,11 +5,12 @@ import math
 from enum import Enum
 import json
 import socket
+import os
 
 with open("robocam_conf.json") as conf_file:
     conf = json.load(conf_file)
-intf = 'wg0'
-measure_time = 1
+intf = conf['host']['stream_rec_intf']
+measure_time = 2
 period = 0.03
 repeats = int(measure_time/period)
 
@@ -81,19 +82,42 @@ def find_rms(bitrates):
   print(diff1,diff2,diff3)
 
   if diff1 <= diff2 <= diff3:
-    return 1
+    return 1 #decreasing rms
   elif diff1 >= diff2 >= diff3:
-    return 0
+    return 0 #increasing rms
   else:
-    return 2
+    return 2 #unsure
 
 def json_dump(data):
+  stats = False
+  # Get current time
+  t = time.localtime()
+  current_time = time.strftime("%H:%M:%S", t)
+
+  bitrate = jitter = -1
+  if os.path.exists("rec_stats.tmp"):
+    #Get RTCP Stats
+    with open("rec_stats.tmp") as f:
+      bitrate, jitter = f.readline().split(',')
+      stats = True
+
   dump_dict = {
-    'KEY' :     'BITRATE_STATE',
-    'PARAMS':   data,
-    'PROTOCOL': 'UDP',
-    'DESC':     ""   
+    'BITRATE_STATE': {
+      'PARAMS':     data,
+      'PROTOCOL':   'UDP',
+      'DESC':       "",
+      'TIMESTAMP':  current_time
+    }
   }
+  if stats:
+    dump_dict.update({
+      'RTCP_STATS': {
+        'PARAMS':    [bitrate,jitter],
+        'PROTOCOL': 'UDP',
+        'DESC':     "RTSP Server Bitrate and Jitter to inform bitrate and fps of Rpi.",
+        'TIMESTAMP': current_time
+      }
+    })
   return json.dumps(dump_dict)
 
 
@@ -175,15 +199,13 @@ def main():
           # Measure bitrate and send to pi
           status, cur_rms = get_status()
           # Serialise and send to pi
-          dump = json_dump([f"{status}", cur_rms])
+          dump = json_dump([str(status), cur_rms])
           print('Sending', dump)
           conn.sendall(dump.encode('utf-8'))
       else:
           print(f'{addr} is not a valid source address')
       conn.close()
 
-  s.shutdown(1)
-  s.close()
 
 
 if __name__ == '__main__':

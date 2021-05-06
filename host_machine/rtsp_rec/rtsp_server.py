@@ -1,11 +1,32 @@
+#!/usr/bin/env python3
 import gi
 gi.require_version('Gst', '1.0')
 gi.require_version('GstRtspServer', '1.0')
-from gi.repository import Gst, GLib, GObject, GstRtspServer
+from gi.repository import Gst, GLib, GObject, GstRtspServer, Gio, GstRtsp
+import subprocess
+import upnp_rtsp
 
 Gst.init(None)
 Gst.debug_set_active(True)
 # Gst.debug_set_default_threshold(3)
+
+# # Helper functions
+# def open_ports():
+#   """
+#   Discovers ports opened by program and opens them on router via UPnP
+#   """
+#   print("OPEN PORETS")
+#   p=subprocess.run(["lsof -i4 -n | grep UDP"], shell=True, stdout=subprocess.PIPE, universal_newlines=True)
+#   port_lines = p.stdout.splitlines()
+
+#   ports = []
+#   for line in port_lines:
+#     port = line.split(':')[1].strip()
+#     ports.append(int(port))
+  
+#   print("Opening ports", ports)
+#   upnp_rtsp.open_upnp_ports(ports)
+
 
 class RTSP_Server:
   port = "5000"
@@ -18,7 +39,11 @@ class RTSP_Server:
   ! videoconvert \
   ! autovideosink"
 
+
+
   def on_ssrc_active(self, session, source):
+    # Open RTP ports on router via upnp
+    # open_ports()
 
     stats = source.get_property("stats")
     is_sender = stats.get_boolean("is-sender")
@@ -30,6 +55,9 @@ class RTSP_Server:
       data = f"{bitrate[1]},{jitter[1]}"
       with open("rec_stats.tmp","w") as f:
         f.write(data)
+    
+    # twcc_stats = source.get_property("twcc-stats")
+    # print("TWCC stats:",twcc_stats)
 
   def media_prepared_cb(self, media):
     n_streams = media.n_streams()
@@ -44,7 +72,14 @@ class RTSP_Server:
       session = stream.get_rtpsession()
       print("Watching session %s on stream %0d" % (session,i))
 
+      # print(dir(stream))
+      # rtcp_range = stream.get_server_port(Gio.SocketFamily.IPV4)
+      # print("rtcp ports", rtcp_range.to_string(GstRtsp.RTSPTimeRange))
+      # print("rtp socket", stream.get_rtp_socket(Gio.SocketFamily.IPV4))
+
       session.connect("on-ssrc-active", self.on_ssrc_active)
+
+
 
   def media_configure_cb(self, factory, media):
     media.connect("prepared", self.media_prepared_cb)

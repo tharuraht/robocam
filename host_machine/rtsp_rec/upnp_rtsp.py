@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import miniupnpc
 import socket
 import sys
@@ -38,23 +39,13 @@ def open_ports(ports):
     print(u.statusinfo(), u.connectiontype())
 
     for port in ports:
-
-      eport = port
       mode = 'UDP'
-
       # find a free port for the redirection
-      r = u.getspecificportmapping(eport, mode)
-      # while r != None and eport < 65536:
-      #   eport = eport + 1
-      #   r = u.getspecificportmapping(eport, mode)
-
-      # print('trying to redirect %s port %u => %s port %u %s' % (\
-      # u.externalipaddress, eport, u.lanaddr, port, mode))
-
-      b = u.addportmapping(eport, mode, u.lanaddr, port,
-                          'UPnP IGD Tester port %u' % eport, '')
+      r = u.getspecificportmapping(port, mode)
+      b = u.addportmapping(port, mode, u.lanaddr, port,
+                          'UPnP IGD Tester port %u' % port, '')
       if b:
-        print('Success, bound to eport %0d' % eport)
+        print('Success, bound to eport %0d' % port)
       else:
         print('Failed')
     
@@ -87,6 +78,23 @@ def close_ports():
     print("No open ports file")
 
 
+def open_upnp_ports(ports):
+  #If file exists, check old ports first
+  if os.path.exists('open_ports.tmp'):
+    print ("File found checking...")
+    old_ports = get_logged_ports()
+
+    old_ports = list(map(int, old_ports)) # converts strings to ints
+    # print(set(ports), set(old_ports))
+    if set(ports) != set(old_ports):
+      print('New ports defined, removing old ports...')
+      close_ports()
+      open_ports(ports)
+    else:
+      print("Same ports, no change needed")
+  else:
+    open_ports(ports)
+
 if __name__ == '__main__':
 
   assert len(sys.argv) <= 3
@@ -111,21 +119,7 @@ if __name__ == '__main__':
 
     print(ports)
 
-    #If file exists, check old ports first
-    if os.path.exists('open_ports.tmp'):
-      print ("File found checking...")
-      old_ports = get_logged_ports()
-
-      old_ports = list(map(int, old_ports)) # converts strings to ints
-      # print(set(ports), set(old_ports))
-      if set(ports) != set(old_ports):
-        print('New ports defined, removing old ports...')
-        close_ports()
-        open_ports(ports)
-      else:
-        print("Same ports, no change needed")
-    else:
-      open_ports(ports)
+    open_upnp_ports(ports)
 
 
   elif mode == 'CLOSE':

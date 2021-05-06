@@ -79,6 +79,23 @@ class video_streamer:
         self.caps = self.conf['pi']['stream_params']
         self.rec_bitrate = self.rec_jitter = -1
 
+    def get_pipeline_desc(self):
+        hostip = self.conf['host']['stream_hostname']
+        hostport = self.conf['host']['stream_rec_port']
+        fec = self.conf['pi']['fec_percentage']
+
+        desc = f'\
+        rpicamsrc preview=false rotation=180 annotation-mode=time+date+custom-text+black-background name=src \
+        bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
+        ! capsfilter caps={self.caps} name=caps \
+        ! h264parse \
+        ! queue \
+        ! rtspclientsink debug=false protocols=udp-mcast+udp \
+        location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec}'
+
+        return desc
+
+
     def bus_call(self, bus, msg, *args):
         # print("BUSCALL", msg, msg.type, *args)
         if msg.type == Gst.MessageType.EOS:
@@ -166,8 +183,9 @@ class video_streamer:
         
         return
 
-    def set_bitrate(self, videosrc, videocaps):
-
+    def set_bitrate(self):
+        videosrc = self.pipeline.get_by_name("src")
+        videocaps = self.pipeline.get_by_name("caps")
         self.parse_status()
 
         framerate = self.params.get_temporal_res()
@@ -187,45 +205,48 @@ class video_streamer:
             (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter))
         return True
 
+    def restart(self):
+        print("RESTARTING")
+        self.pipeline.set_state(Gst.State.READY)
+        self.pipeline.set_state(Gst.State.NULL)
+        time.sleep(1)
+        self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
+        # time.sleep(1)
+
+        bus = self.pipeline.get_bus()
+        bus.add_watch(0, self.bus_call, self.loop)
+
+
+        self.pipeline.set_state(Gst.State.PLAYING)
+        return True
 
 
     def launch(self):
-        hostip = self.conf['host']['stream_hostname']
-        hostport = self.conf['host']['stream_rec_port']
-        fec = self.conf['pi']['fec_percentage']
+        self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
 
-        pipeline = Gst.parse_launch(f'\
-        rpicamsrc preview=false rotation=180 annotation-mode=time+date+custom-text+black-background name=src \
-        bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
-        ! capsfilter caps={self.caps} name=caps \
-        ! h264parse \
-        ! queue \
-        ! rtspclientsink debug=false protocols=udp-mcast+udp \
-        location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec}')
-
-        if pipeline == None:
+        if self.pipeline == None:
             print ("Failed to create pipeline")
             sys.exit(0)
 
         # watch for messages on the pipeline's bus (note that this will only
         # work like this when a GLib main loop is running)
-        bus = pipeline.get_bus()
+        bus = self.pipeline.get_bus()
         bus.add_watch(0, self.bus_call, self.loop)
 
-        videosrc = pipeline.get_by_name("src")
-        videocaps = pipeline.get_by_name("caps")
 
-        GLib.timeout_add(5000, self.set_bitrate, videosrc, videocaps)
+        GLib.timeout_add_seconds(5, self.set_bitrate)
+
+        GLib.timeout_add_seconds(10, self.restart)
 
         # run
-        pipeline.set_state(Gst.State.PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
         try:
             self.loop.run()
         except Exception as e:
             print(e)
         finally:
             # cleanup
-            pipeline.set_state(Gst.State.NULL)
+            self.pipeline.set_state(Gst.State.NULL)
 
 
 if __name__ == "__main__":

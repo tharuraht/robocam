@@ -7,55 +7,79 @@
 import time
 import pygame
 import socket
-import argparse
 import json
+from collections import defaultdict
 
 
-with open("robocam_conf.json") as conf_file:
-    conf = json.load(conf_file)
-    DEFAULT_UDP_PORT = conf['pi']['control_port']
-    DEFAULT_IP = conf['pi']['vpn_addr']
+def joystick_init():
+    pygame.init()
+    pygame.joystick.init()
 
-# Define arguments
-parser = argparse.ArgumentParser(description="Sends control signals created by\
-    video game controller")
-parser.add_argument('--targetIP', type=str, default=DEFAULT_IP, help='IP address of target device')
-parser.add_argument('--targetPort', type=str, default=DEFAULT_UDP_PORT,
-    help='Target port to send to')
+    try:
+        j = pygame.joystick.Joystick(0)
+        j.init()
+    except Exception as e:
+        print("Error initialising joystick:", e)
+        exit(1)
+    return j
 
-args = parser.parse_args()
-UDP_IP = args.targetIP
-UDP_PORT = args.targetPort
+def send_map(joymap, conf):
+    port = conf['pi']['control_port']
+    addr = conf['pi']['vpn_addr']
 
-pygame.init()
-pygame.joystick.init()
+    dump = json.dumps(joymap)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(dump.encode(),(addr, port))
+    
 
-try:
-    j = pygame.joystick.Joystick(0)
-    j.init()
-except Exception as e:
-    print("Error initialising joystick:", e)
-    exit(1)
+def control_loop(j, conf):
 
-print ("UDP target IP:", UDP_IP)
-print ("UDP target port:", UDP_PORT)
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    prevmap = defaultdict(bool)
+    try:
+        while True:
+            joymap = defaultdict(bool)
+            pygame.event.pump()
 
-miss="99,99"
-try:
-    while True:
-        pygame.event.pump()
-        x=j.get_axis(0)*99
-        y=-j.get_axis(1)*99
-        misp=miss
-        miss="{:.0f}".format(x)+","+"{:.0f}".format(y)
-        if(miss!=misp):
-            print (miss)
-            sock.sendto(miss.encode(),(UDP_IP, UDP_PORT))
-        else:
-            # print ("stndby: "+miss)
-            pass
-        time.sleep(0.05)
-except KeyboardInterrupt:
-    sock.sendto("0,0".encode(),(UDP_IP, UDP_PORT))
-    time.sleep(1)
+            # Get joystick values
+            joymap['x'] = j.get_axis(0)*99
+            joymap['y'] = -j.get_axis(1)*99
+
+            for i in range(j.get_numbuttons()):
+                joymap[f"b_{i}"] = j.get_button(i)
+            
+            
+            hat = j.get_hat(0)
+            joymap["h_up"] = (hat[1] == 1)
+            joymap["h_right"] = (hat[0] == 1)
+            joymap["h_down"] = (hat[1] == -1)
+            joymap["h_left"] = (hat[0] == -1)
+
+            # print(joymap)
+            if(joymap != prevmap):
+                # print (joymap)
+                send_map(joymap, conf)
+                pass
+            else:
+                # print ("stndby: "+miss)
+                pass 
+            time.sleep(0.05)
+            prevmap = joymap.copy()
+    except KeyboardInterrupt:
+        joymap = defaultdict(bool)
+        joymap['x'] = 0
+        joymap['y'] = 0
+        send_map(joymap, conf)
+        time.sleep(1)
+
+
+def main():
+    with open("robocam_conf.json") as conf_file:
+        conf = json.load(conf_file)
+
+    j = joystick_init()
+
+    control_loop(j, conf)
+
+
+if __name__ == "__main__":
+    main()

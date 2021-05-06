@@ -17,13 +17,14 @@ import socket
 import os
 import logging
 from enum import Enum
+import time
 
 # Gst.debug_set_active(True)
 # Gst.debug_set_default_threshold(3)
 
 class Video_params:
     temporal_res = [10,15,25,30,35]
-    spatial_res = [100000, 300000, 600000, 1000000, 2000000, 5000000]
+    spatial_res = [100000, 300000, 600000, 1000000, 2000000, 5000000, 7000000, 10000000]
 
     def __init__(self):
         self.cur_temp_idx = 3
@@ -76,6 +77,24 @@ class video_streamer:
         self.conf = conf
         self.bitrate = conf['pi']['starting_bitrate']
         self.caps = self.conf['pi']['stream_params']
+        self.rec_bitrate = self.rec_jitter = -1
+
+    def get_pipeline_desc(self):
+        hostip = self.conf['host']['stream_hostname']
+        hostport = self.conf['host']['stream_rec_port']
+        fec = self.conf['pi']['fec_percentage']
+
+        desc = f'\
+        rpicamsrc preview=false rotation=180 annotation-mode=time+date+custom-text+black-background name=src \
+        bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
+        ! capsfilter caps={self.caps} name=caps \
+        ! h264parse \
+        ! queue \
+        ! rtspclientsink debug=false protocols=udp-mcast+udp \
+        location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec}'
+
+        return desc
+
 
     def bus_call(self, bus, msg, *args):
         # print("BUSCALL", msg, msg.type, *args)
@@ -100,34 +119,45 @@ class video_streamer:
         self.caps = ",".join(splits)
 
     def get_status(self):
-        #TODO get bitrate
-        bitrate = []
         status = None
+        rms_state = -1
 
 
         tcp_ip = self.conf['host']['vpn_addr']
         tcp_port = self.conf['host']['comms_port']
-        buff_sz = 100
+        buff_sz = 300
 
         rate = 0
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((tcp_ip, tcp_port))
-        logging.debug('connected')
-        while True:
-            data = s.recv(buff_sz)
-            if data:
-                msg = data.decode('utf-8')
-                print('msg',msg)
-                dict = json.loads(msg)
-                if dict['KEY'] == 'BITRATE_STATE':
-                    status, bitrate = dict['PARAMS']
-            else:
-                break
+        s.settimeout(2.5)
+
+        try:
+            s.connect((tcp_ip, tcp_port))
+            logging.debug('connected')
+            while True:
+                data = s.recv(buff_sz)
+                if data:
+                    msg = data.decode('utf-8')
+                    # print('msg',msg)
+                    dict = json.loads(msg)
+                    print(dict)
+                    t = time.localtime()
+                    current_time = time.strftime("%H:%M:%S", t)
+                    if 'BITRATE_STATE' in dict:
+                        print(dict['BITRATE_STATE']['TIMESTAMP'], current_time)
+                        status, rms_state = dict['BITRATE_STATE']['PARAMS']
+                    if 'RTCP_STATS' in dict:
+                        self.rec_bitrate, self.rec_jitter = dict['RTCP_STATS']['PARAMS']
+                else:
+                    break
+        except socket.timeout:
+            print("Timeout!, Marking status as degraded")
+            status = str(Status.Degraded)
         
-        return status, bitrate
+        return status, rms_state
     
     def parse_status(self):
-        status, bitrate = self.get_status()
+        status, rms_state = self.get_status()
         print("Received Status: %s" % status)
 
         if status == str(Status.Progressive):
@@ -143,13 +173,19 @@ class video_streamer:
             # reduce both spatial and temporal res
             self.params.change_params(temporal=-1, spatial=-1)
         else:
-            # Wait for next feedback to make change
-            pass
+            # # Wait for next feedback to make change
+            # pass
+            # Check rms state
+            if rms_state == 1: # decreasing rms
+                self.params.change_params(temporal=0, spatial=-1)
+            elif rms_state == 0: # increasing rms
+                self.params.change_params(temporal=0, spatial=1)
         
         return
 
-    def set_bitrate(self, videosrc, videocaps):
-
+    def set_bitrate(self):
+        videosrc = self.pipeline.get_by_name("src")
+        videocaps = self.pipeline.get_by_name("caps")
         self.parse_status()
 
         framerate = self.params.get_temporal_res()
@@ -157,56 +193,60 @@ class video_streamer:
 
         self.bitrate = self.params.get_spatial_res()
         # logging.debug(self.caps)
-        logging.debug(videocaps.get_property("caps").to_string())
+        # logging.debug(videocaps.get_property("caps").to_string())
         videocaps.set_property("caps", Gst.Caps.from_string(self.caps))
 
         # logging.debug(videosrc.set_caps())
         
         logging.debug("Updating video bitrate to {0}".format(self.bitrate))
         videosrc.set_property("bitrate", self.bitrate)
-        videosrc.set_property("annotation-text", "Bitrate %d Framerate %d   " % 
-            (self.bitrate, framerate))
+        videosrc.set_property("annotation-text", 
+        "Sender Bitrate %d Framerate %d  Receiver Bitrate %s Jitter %s  " % 
+            (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter))
+        return True
+
+    def restart(self):
+        print("RESTARTING")
+        self.pipeline.set_state(Gst.State.READY)
+        self.pipeline.set_state(Gst.State.NULL)
+        time.sleep(1)
+        self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
+        # time.sleep(1)
+
+        bus = self.pipeline.get_bus()
+        bus.add_watch(0, self.bus_call, self.loop)
+
+
+        self.pipeline.set_state(Gst.State.PLAYING)
         return True
 
 
-
     def launch(self):
-        hostip = self.conf['host']['stream_hostname']
-        hostport = self.conf['host']['stream_rec_port']
-        fec = self.conf['pi']['fec_percentage']
+        self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
 
-        pipeline = Gst.parse_launch(f'\
-        rpicamsrc preview=false vflip=true annotation-mode=time+date+custom-text name=src \
-        bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
-        ! capsfilter caps={self.caps} name=caps \
-        ! h264parse \
-        ! queue \
-        ! rtspclientsink debug=false protocols=udp-mcast+udp \
-        location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec}')
-
-        if pipeline == None:
+        if self.pipeline == None:
             print ("Failed to create pipeline")
             sys.exit(0)
 
         # watch for messages on the pipeline's bus (note that this will only
         # work like this when a GLib main loop is running)
-        bus = pipeline.get_bus()
+        bus = self.pipeline.get_bus()
         bus.add_watch(0, self.bus_call, self.loop)
 
-        videosrc = pipeline.get_by_name("src")
-        videocaps = pipeline.get_by_name("caps")
 
-        GLib.timeout_add(1000, self.set_bitrate, videosrc, videocaps)
+        GLib.timeout_add_seconds(5, self.set_bitrate)
+
+        GLib.timeout_add_seconds(10, self.restart)
 
         # run
-        pipeline.set_state(Gst.State.PLAYING)
+        self.pipeline.set_state(Gst.State.PLAYING)
         try:
             self.loop.run()
         except Exception as e:
             print(e)
         finally:
             # cleanup
-            pipeline.set_state(Gst.State.NULL)
+            self.pipeline.set_state(Gst.State.NULL)
 
 
 if __name__ == "__main__":

@@ -71,13 +71,15 @@ class video_streamer:
     loop = GLib.MainLoop()
     Gst.init(None)
     params = Video_params()
+    ctrl_q = None # Comands send from control
+    rec_bitrate = rec_jitter = -1
 
 
-    def __init__(self, conf):
+    def __init__(self, conf, ctrl_streamer_q = None):
         self.conf = conf
         self.bitrate = conf['pi']['starting_bitrate']
         self.caps = self.conf['pi']['stream_params']
-        self.rec_bitrate = self.rec_jitter = -1
+        self.ctrl_q = ctrl_streamer_q
 
     def get_pipeline_desc(self):
         hostip = self.conf['host']['stream_hostname']
@@ -220,6 +222,19 @@ class video_streamer:
         self.pipeline.set_state(Gst.State.PLAYING)
         return True
 
+    def parse_commands(self, command):
+        #TODO parse commands
+
+
+    def get_commands(self):
+        if self.ctrl_q is not None:
+            print("Parsing commands from queue")
+            try:
+                command = self.ctrl_q.get(False)
+                self.parse_commands(command)
+        else:
+            print("No control queue set")
+
 
     def launch(self):
         self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
@@ -236,7 +251,7 @@ class video_streamer:
 
         GLib.timeout_add_seconds(5, self.set_bitrate)
 
-        GLib.timeout_add_seconds(10, self.restart)
+        GLib.timeout_add(100, self.get_commands)
 
         # run
         self.pipeline.set_state(Gst.State.PLAYING)

@@ -33,11 +33,14 @@ class RTSP_Server:
   mount_point = "/test"
   latency = 100
 
-  PIPELINE = "\
+  PIPELINE = '\
   rtph264depay name=depay0\
   ! avdec_h264 \
+  ! clockoverlay halignment=left valignment=bottom \
+    text="Current Time" shaded-background=true font-desc="Sans, 11" \
   ! videoconvert \
-  ! autovideosink"
+  ! timeoverlayparse  \
+  ! autovideosink'
 
 
 

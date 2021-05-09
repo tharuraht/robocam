@@ -2,7 +2,7 @@
   "host": 
   {
     "stream_rec_port": 5000,
-    "stream_rec_intf": "wg0",
+    "stream_rec_intf": "wlp4s0",
     "stream_hostname": "4grobo.zapto.org",
     "vpn_addr": "10.200.200.1",
     "comms_port": 5001,

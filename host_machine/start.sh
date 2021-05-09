@@ -2,6 +2,8 @@
 GST_PATH=/home/tharu/Downloads/gst-build/gst-env.py
 RTSP_PATH=$ROBOCAM_DIR/host_machine/rtsp_rec/
 
+export GST_PLUGIN_PATH=/home/tharu/Downloads/latency-clock/
+
 function open_upnp {
 # echo "Opening upnp ports"
 res=$(lsof -i4 -n | grep python | grep UDP) 
@@ -33,6 +35,6 @@ trap 'kill 0' EXIT
 python3 ps_bitrate.py &    # Bitrate profiler and RTCP Stats
 $GST_PATH  $RTSP_PATH/rtsp_server.py  &  # RTSP Streamer
 open_upnp &                       # Upnp port generator
-python3 $ROBOCAM_DIR/host_machine/control/robot_joy_udp.py & # Robot platform controller
+$ROBOCAM_DIR/host_machine/control/robot_joy_udp.py # Robot platform controller
 wait
 

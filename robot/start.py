@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 # https://stackoverflow.com/questions/43861164/passing-data-between-separately-running-python-scripts
 from multiprocessing import Process, Queue
 from control import central_control
@@ -16,10 +16,10 @@ def main():
     ctrl = central_control.Central_Control(conf, ctrl_streamer_q)
     streamer = rtsp_stream.video_streamer(conf, ctrl_streamer_q)
 
+    ctrl_p = Process(target=ctrl.control_loop)
+    ctrl_p.daemon = True
+    ctrl_p.start()
 
-    ctrl_p = Process(target=ctrl.control_loop())
-
-    ctrl.control_loop()
     streamer.launch()
 
 if __name__ == "__main__":

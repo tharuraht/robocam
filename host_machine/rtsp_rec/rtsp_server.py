@@ -5,6 +5,7 @@ gi.require_version('GstRtspServer', '1.0')
 from gi.repository import Gst, GLib, GObject, GstRtspServer, Gio, GstRtsp
 import subprocess
 import upnp_rtsp
+import json
 
 Gst.init(None)
 Gst.debug_set_active(True)
@@ -32,22 +33,32 @@ class RTSP_Server:
   port = "5000"
   mount_point = "/test"
   latency = 100
+  conf = None
 
-  PIPELINE = '\
-  rtph264depay name=depay0\
-  ! avdec_h264 \
-  ! clockoverlay halignment=left valignment=bottom \
-    text="Current Time" shaded-background=true font-desc="Sans, 11" \
-  ! videoconvert \
-  ! timeoverlayparse  \
-  ! autovideosink'
+  def __init__(self,conf):
+    self.conf = conf
 
 
+  def get_pipeline(self):
+    save_dir = self.conf["host"]["video_dir"]
+    print("Saving to %s" % save_dir)
+    return f'\
+    rtph264depay name=depay0\
+    ! tee name=filesave \
+    ! queue \
+    ! avdec_h264 \
+    ! clockoverlay halignment=left valignment=bottom \
+      text="Current Time" shaded-background=true font-desc="Sans, 11" \
+    ! videoconvert \
+    ! autovideosink \
+    filesave. \
+    ! queue \
+    ! h264parse \
+    ! splitmuxsink location={save_dir}/host_video%02d.mov max-size-bytes=3000000\
+    '
+    # ! timeoverlayparse  \
 
   def on_ssrc_active(self, session, source):
-    # Open RTP ports on router via upnp
-    # open_ports()
-
     stats = source.get_property("stats")
     is_sender = stats.get_boolean("is-sender")
     # print(is_sender)
@@ -91,7 +102,7 @@ class RTSP_Server:
   def factory_setup(self):
     factory = GstRtspServer.RTSPMediaFactory.new()
     factory.set_transport_mode(GstRtspServer.RTSPTransportMode.RECORD)
-    factory.set_launch(self.PIPELINE)
+    factory.set_launch(self.get_pipeline())
     factory.set_latency(self.latency)
 
     #Callback to start tracing once media is prepared for streaming
@@ -115,5 +126,7 @@ class RTSP_Server:
     loop.run()
 
 if __name__ == '__main__':
-  server = RTSP_Server()
+  with open('robocam_conf.json') as f:
+    conf = json.load(f)
+  server = RTSP_Server(conf)
   server.launch()

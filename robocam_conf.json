@@ -6,7 +6,8 @@
     "stream_hostname": "4grobo.zapto.org",
     "vpn_addr": "10.200.200.1",
     "comms_port": 5001,
-    "gst_path": "/home/tharu/Downloads/gst-build/gst-env.py"
+    "gst_path": "/home/tharu/Downloads/gst-build/gst-env.py",
+    "video_dir": "/home/tharu/Documents/robocam/host_machine/video_store"
   },
   "pi":
   {

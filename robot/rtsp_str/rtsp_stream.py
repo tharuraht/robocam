@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # #SERVER=4grobo.zapto.org
 # SERVER=10.200.200.1
 
@@ -22,12 +22,18 @@ import time
 # Gst.debug_set_active(True)
 # Gst.debug_set_default_threshold(3)
 
+class Anno_modes(Enum):
+    date = 0x00000004
+    time = 0x00000008
+    custom_text = 0x00000001
+    black_bg = 0x00000400
+
 class Video_params:
-    temporal_res = [10,15,25,30,35]
+    temporal_res = [10,15,25,30,40]
     spatial_res = [100000, 300000, 600000, 1000000, 2000000, 5000000, 7000000, 10000000]
 
     def __init__(self):
-        self.cur_temp_idx = 3
+        self.cur_temp_idx = 2
         self.cur_spatial_idx = 1
     
     def get_temporal_res(self):
@@ -73,6 +79,7 @@ class video_streamer:
     params = Video_params()
     ctrl_q = None # Comands send from control
     rec_bitrate = rec_jitter = -1
+    show_stats = True
 
 
     def __init__(self, conf, ctrl_streamer_q = None):
@@ -85,9 +92,14 @@ class video_streamer:
         hostip = self.conf['host']['stream_hostname']
         hostport = self.conf['host']['stream_rec_port']
         fec = self.conf['pi']['fec_percentage']
+        annotation = Anno_modes.date.value + Anno_modes.time.value + Anno_modes.black_bg.value
+        if self.show_stats:
+            annotation += Anno_modes.custom_text.value
+
+        # annotation = GstRpiCamSrcAnnotationMode(annotation)
 
         desc = f'\
-        rpicamsrc preview=false rotation=180 annotation-mode=time+date+custom-text+black-background name=src \
+        rpicamsrc preview=false rotation=180 annotation-mode={annotation} name=src \
         bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
         ! capsfilter caps={self.caps} name=caps \
         ! h264parse \
@@ -95,6 +107,7 @@ class video_streamer:
         ! rtspclientsink debug=false protocols=udp-mcast+udp \
         location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec}'
 
+        # ! timestampoverlay \ TODO use muxer
         return desc
 
 
@@ -162,18 +175,23 @@ class video_streamer:
         status, rms_state = self.get_status()
         print("Received Status: %s" % status)
 
+        # TODO restore temporal changes
+
         if status == str(Status.Progressive):
             #Increase bitrate and framerate
-            self.params.change_params(temporal=1, spatial=1)
+            # self.params.change_params(temporal=1, spatial=1)
+            self.params.change_params(temporal=0, spatial=1)
         elif status == str(Status.Stable):
             #TODO Increase temporal resolution
-            self.params.change_params(temporal=1, spatial=0)
+            # self.params.change_params(temporal=1, spatial=0)
+            self.params.change_params(temporal=0, spatial=0)
         elif status == str(Status.Fluctuated):
             #TODO do nothing
             pass
         elif status == str(Status.Degraded):
             # reduce both spatial and temporal res
-            self.params.change_params(temporal=-1, spatial=-1)
+            # self.params.change_params(temporal=-1, spatial=-1)
+            self.params.change_params(temporal=0, spatial=-1)
         else:
             # # Wait for next feedback to make change
             # pass
@@ -196,8 +214,7 @@ class video_streamer:
         self.bitrate = self.params.get_spatial_res()
         # logging.debug(self.caps)
         # logging.debug(videocaps.get_property("caps").to_string())
-        videocaps.set_property("caps", Gst.Caps.from_string(self.caps))
-
+        # videocaps.set_property("caps", Gst.Caps.from_string(self.caps))
         # logging.debug(videosrc.set_caps())
         
         logging.debug("Updating video bitrate to {0}".format(self.bitrate))
@@ -224,19 +241,43 @@ class video_streamer:
 
     def parse_commands(self, command):
         #TODO parse commands
+        if command == "[TOGGLE_STATS]":
+            self.show_stats = not self.show_stats
+            annotation = Anno_modes.date.value + Anno_modes.time.value + Anno_modes.black_bg.value
+            if self.show_stats:
+                annotation += Anno_modes.custom_text.value
+            print("Show stats:",self.show_stats)
+            videosrc = self.pipeline.get_by_name("src")
+            videosrc.set_property("annotation-mode", annotation)
+        elif command == "[INC_FPS]":
+            self.params.change_params(temporal=1)
+            framerate = self.params.get_temporal_res()
+            self.update_framerate(framerate)
+            self.restart()
+        elif command == "[DEC_FPS]":
+            self.params.change_params(temporal=-1)
+            framerate = self.params.get_temporal_res()
+            self.update_framerate(framerate)
+            self.restart()
+        elif command == "[PIPE_RESTART]":
+            self.restart()
+
 
 
     def get_commands(self):
         if self.ctrl_q is not None:
-            print("Parsing commands from queue")
-            try:
+            # print("Parsing commands from queue")
+            if not self.ctrl_q.empty():
                 command = self.ctrl_q.get(False)
+                print("Command received:", command)
                 self.parse_commands(command)
         else:
             print("No control queue set")
+        return True
 
 
     def launch(self):
+        print("Launching stream")
         self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
 
         if self.pipeline == None:
@@ -251,7 +292,7 @@ class video_streamer:
 
         GLib.timeout_add_seconds(5, self.set_bitrate)
 
-        GLib.timeout_add(100, self.get_commands)
+        GLib.timeout_add(50, self.get_commands)
 
         # run
         self.pipeline.set_state(Gst.State.PLAYING)

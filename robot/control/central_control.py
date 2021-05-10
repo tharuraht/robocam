@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import socket
 import time
 import json
@@ -33,26 +34,30 @@ class Central_Control():
         print(f"Ready to receive at {UDP_IP}:{UDP_PORT}")
 
     def parse_map(self, joymap):
+        comm = self.conf["controller_config"]
         if {"x", "y"} <= joymap.keys():
             # Movement controls, send to relay
             self.relay.write_dev("{:.0f},{:.0f}".format(joymap['x'],joymap['y']))
 
         if self.streamer_q is not None:
-            if joymap["b_10"]:
+            if joymap[comm["RESTART_PI"]]:
                 print("Restarting Pi")
                 # TODO shutdown all and restart pi
+            
+            if joymap[comm["RESTART_STREAM"]]:
+                self.streamer_q.put("[PIPE_RESTART]")
 
-            if joymap["h_up"]:
+            if joymap[comm["INC_FPS"]]:
                 print("Increasing FPS")
                 #TODO increase fps
                 self.streamer_q.put("[INC_FPS]")
-            elif joymap["h_down"]:
+            elif joymap[comm["DEC_FPS"]]:
                 print("Decreasing FPS")
                 # TODO decrease fps
                 self.streamer_q.put("[DEC_FPS]")
 
             # Toggle stats
-            if joymap["b_0"]:
+            if joymap[comm["TOGGLE_STATS"]]:
                 print("Toggling stats...")
                 # TODO toggle stats
                 self.streamer_q.put("[TOGGLE_STATS]")
@@ -64,12 +69,13 @@ class Central_Control():
         prevmap = defaultdict(bool)
         while True:
             data = self.sock.recv(1024) # buffer size is 1024 bytes TODO check if big enough
-            print("Data received: %s" % data)
+            # print("Data received: %s" % data)
 
             joymap = json.loads(data.decode())
 
             if joymap != prevmap:
-                parse_map(joymap)
+                print(joymap)
+                self.parse_map(joymap)
 
 if __name__ == "__main__":
     source_path = Path(__file__).resolve()

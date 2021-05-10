@@ -7,7 +7,8 @@
     "vpn_addr": "10.200.200.1",
     "comms_port": 5001,
     "gst_path": "/home/tharu/Downloads/gst-build/gst-env.py",
-    "video_dir": "/home/tharu/Documents/robocam/host_machine/video_store"
+    "video_dir": "/home/tharu/Documents/robocam/host_machine/video_store",
+    "video_save_dur": 20000000000
   },
   "pi":
   {

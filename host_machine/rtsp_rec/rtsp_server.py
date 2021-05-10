@@ -41,6 +41,7 @@ class RTSP_Server:
 
   def get_pipeline(self):
     save_dir = self.conf["host"]["video_dir"]
+    duration = self.conf["host"]["video_save_dur"]
     print("Saving to %s" % save_dir)
     return f'\
     rtph264depay name=depay0\
@@ -54,7 +55,7 @@ class RTSP_Server:
     filesave. \
     ! queue \
     ! h264parse \
-    ! splitmuxsink location={save_dir}/host_video%02d.mov max-size-bytes=3000000\
+    ! splitmuxsink location={save_dir}/host_video%02d.mov max-size-time={duration}\
     '
     # ! timeoverlayparse  \
 

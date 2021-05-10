@@ -1,61 +1,26 @@
-#!/usr/bin/python3
-from subprocess import Popen, PIPE
+#!/usr/bin/env python3
+# https://stackoverflow.com/questions/43861164/passing-data-between-separately-running-python-scripts
+from multiprocessing import Process, Queue
+from control import central_control
+from rtsp_str import rtsp_stream
+import json
 import os
-from select import select
-import sys
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-print(dir_path)
+def main():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
 
-stat_rec_path = os.path.join(dir_path,'rtsp_str','stat_rec.py')
-rtsp_str_path = os.path.join(dir_path,'rtsp_str','rtsp_stream.py')
-ctrl_relay_path = os.path.join(dir_path,'control','robot_ser_relay.py')
+    with open(os.path.join(dir_path,'..','robocam_conf.json')) as f:
+        conf = json.load(f)
 
-# proc_lst = [stat_rec_p, rtsp_str_p]
+    ctrl_streamer_q = Queue() # Queue from ctrl to streamer
+    ctrl = central_control.Central_Control(conf, ctrl_streamer_q)
+    streamer = rtsp_stream.video_streamer(conf, ctrl_streamer_q)
 
-# Popen keyword arguments and defaults
-kwds = {
-    "stdout": PIPE,
-    "bufsize": 1,
-    "close_fds": True,
-    "universal_newlines": True,
-}
+    ctrl_p = Process(target=ctrl.control_loop)
+    ctrl_p.daemon = True
+    ctrl_p.start()
 
-path_lst = [stat_rec_path, rtsp_str_path]
-proc_lst = [Popen(cmd, **kwds) for cmd in path_lst]
+    streamer.launch()
 
-def safe_termination(procs):
-    print('Safe exit')
-    # Cleanup
-    if os.path.exists('rec_stats.tmp'):
-        os.remove('rec_stats.tmp')
-
-    # Terminate remaining processes
-    for proc in procs:
-        proc.terminate()
-    return
-
-
-try:
-    while proc_lst:
-        #TODO check if any of the processes exit abnormally
-        for i,p in enumerate(proc_lst):
-            if p.poll() is not None:
-                print(p.stdout.read(), end='')
-                p.stdout.close()
-                print("Process ended unexpectedly with path: ",path_lst[i])
-                proc_lst.remove(p)
-                safe_termination(proc_lst)
-                sys.exit(1)
-                # TODO Attempt to restart process
-                # p = Popen(path_lst[i], **kwds)
-
-        # Read stdout
-        try:
-            r_list = select([p.stdout for p in proc_lst], [], []) [0]
-            for f in r_list:
-                print(f.readline(), end='')
-        except ValueError as e:
-            print("[ERROR]", e)
-except KeyboardInterrupt:
-    safe_termination(proc_lst)
+if __name__ == "__main__":
+    main()

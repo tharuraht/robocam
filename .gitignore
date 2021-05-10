@@ -39,3 +39,5 @@ robocam_rec
 *.log
 
 *__pycache__
+
+host_machine/video_store/*

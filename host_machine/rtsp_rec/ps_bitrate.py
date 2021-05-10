@@ -50,6 +50,10 @@ def analyse(bitrates):
   end = bitrates[-1]
 
   print(start,median,end)
+
+  # If all are zero, ignore
+  if all(rates == 0 for rates in bitrates):
+    return Observation.gamma
   
   if start <= median <= end:
     print('Monotonicaly increasing')

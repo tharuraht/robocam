@@ -2,7 +2,8 @@
 import gi
 gi.require_version('Gst', '1.0')
 gi.require_version('GstRtspServer', '1.0')
-from gi.repository import Gst, GLib, GObject, GstRtspServer, Gio, GstRtsp
+gi.require_version('GstBase', '1.0')
+from gi.repository import Gst, GLib, GstBase, GObject, GstRtspServer, Gio, GstRtsp
 import subprocess
 import upnp_rtsp
 import json
@@ -58,6 +59,8 @@ class RTSP_Server:
     print("Saving to %s" % save_dir)
     return f'\
     rtph264depay name=depay0\
+    ! queue \
+    ! h264parse config-interval=1 name=parse \
     ! tee name=filesave \
     ! queue \
     ! avdec_h264 \
@@ -117,6 +120,11 @@ class RTSP_Server:
       # #add the probe to the pad obtained in previous solution
       # probeID = srcpad.add_probe(Gst.PadProbeType.BUFFER, self.probe_callback)
 
+      # Workaround camera PTS issue
+      # https://stackoverflow.com/questions/42874691/gstreamer-for-android-buffer-has-no-pts
+      parse = self.factory.pipeline.get_by_name("parse")
+      GstBase.BaseParse.set_infer_ts(parse, True)
+      GstBase.BaseParse.set_pts_interpolation(parse, True)
 
       session.connect("on-ssrc-active", self.on_ssrc_active)
 

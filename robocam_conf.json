@@ -29,6 +29,7 @@
     "RESTART_STREAM" : "b_9",
     "RESTART_PI" : "b_8",
     "INC_FPS" : "h_up",
-    "DEC_FPS" : "h_down"
+    "DEC_FPS" : "h_down",
+    "TOGGLE_SEC_CAM" : "b_0"
   }
 }

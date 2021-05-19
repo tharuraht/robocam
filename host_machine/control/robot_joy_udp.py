@@ -31,8 +31,15 @@ def send_map(joymap, conf):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(dump.encode(),(addr, port))
     
+def parse_map(joymap, conf, rec_ctrl):
+    comm = conf["controller_config"]
 
-def control_loop(conf):
+    if rec_ctrl is not None:
+        if joymap[comm["TOGGLE_SEC_CAM"]]:
+            print("Toggling secondary Camera")
+            rec_ctrl.put("[TOGGLE_SEC_CAM]")
+
+def control_loop(conf, rec_ctrl = None):
     j = joystick_init()
 
     prevmap = defaultdict(bool)
@@ -58,11 +65,9 @@ def control_loop(conf):
             # print(joymap)
             if(joymap != prevmap):
                 # print (joymap)
+                # parse_map(joymap, conf, rec_ctrl)
                 send_map(joymap, conf)
-                pass
-            else:
-                # print ("stndby: "+miss)
-                pass 
+            
             time.sleep(0.05)
             prevmap = joymap.copy()
     except KeyboardInterrupt:

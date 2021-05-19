@@ -49,17 +49,14 @@ class Central_Control():
 
             if joymap[comm["INC_FPS"]]:
                 print("Increasing FPS")
-                #TODO increase fps
                 self.streamer_q.put("[INC_FPS]")
             elif joymap[comm["DEC_FPS"]]:
                 print("Decreasing FPS")
-                # TODO decrease fps
                 self.streamer_q.put("[DEC_FPS]")
 
             # Toggle stats
             if joymap[comm["TOGGLE_STATS"]]:
                 print("Toggling stats...")
-                # TODO toggle stats
                 self.streamer_q.put("[TOGGLE_STATS]")
         else:
             print("Streamer control queue not set")

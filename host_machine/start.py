@@ -37,13 +37,13 @@ def main():
     with open(os.path.join(dir_path,'..','robocam_conf.json')) as f:
         conf = json.load(f)
 
-    # ctrl_rec_q = Queue() # Queue from ctrl to rec
+    ctrl_rec_q = Queue() # Queue from ctrl to rec
 
     try:
-        rec = rtsp_server.RTSP_Server(conf)
+        rec = rtsp_server.RTSP_Server(conf,ctrl_rec_q)
         ps = ps_bitrate.PS_Bitrate(conf)
 
-        ctrl_p = Process(target=robot_joy_udp.control_loop, daemon=True, args=(conf,))
+        ctrl_p = Process(target=robot_joy_udp.control_loop, daemon=True, args=(conf,ctrl_rec_q,))
         ctrl_p.start()
 
         rec_p = Process(target=rec.launch)

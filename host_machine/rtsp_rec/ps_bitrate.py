@@ -99,9 +99,9 @@ def json_dump(data):
   current_time = time.strftime("%H:%M:%S", t)
 
   bitrate = jitter = -1
-  if os.path.exists("rec_stats.tmp"):
+  if os.path.exists("tmp/rec_stats.tmp"):
     #Get RTCP Stats
-    with open("rec_stats.tmp") as f:
+    with open("tmp/rec_stats.tmp") as f:
       bitrate, jitter = f.readline().split(',')
       stats = True
 

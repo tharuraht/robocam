@@ -18,7 +18,10 @@ import os
 import logging
 from enum import Enum
 import time
+from pijuice import PiJuice
 
+
+Gst.init(None)
 # Gst.debug_set_active(True)
 # Gst.debug_set_default_threshold(3)
 
@@ -73,41 +76,67 @@ class Status(Enum):
   Progressive = 5
 
 class video_streamer:
-     # initialization
     loop = GLib.MainLoop()
-    Gst.init(None)
     params = Video_params()
+    pijuice = PiJuice(1, 0x14) # Instantiate PiJuice interface object
     ctrl_q = None # Comands send from control
     rec_bitrate = rec_jitter = -1
     show_stats = True
+    second_cam = True
+    # Controls whether to show timestamp overlay for latency calculation
+    timestampoverlay = False
 
 
     def __init__(self, conf, ctrl_streamer_q = None):
         self.conf = conf
         self.bitrate = conf['pi']['starting_bitrate']
-        self.caps = self.conf['pi']['stream_params']
+        self.caps = self.conf['pi']['raw_stream_params']
         self.ctrl_q = ctrl_streamer_q
 
     def get_pipeline_desc(self):
         hostip = self.conf['host']['stream_hostname']
         hostport = self.conf['host']['stream_rec_port']
         fec = self.conf['pi']['fec_percentage']
+        stream_params = self.conf['pi']['stream_params']
+        rev_cam_params = self.conf['pi']['rev_cam_params']
+
+        
         annotation = Anno_modes.date.value + Anno_modes.time.value + Anno_modes.black_bg.value
         if self.show_stats:
             annotation += Anno_modes.custom_text.value
 
-        # annotation = GstRpiCamSrcAnnotationMode(annotation)
+        overlay = "! timestampoverlay" if self.timestampoverlay else ""
 
-        desc = f'\
+        primary_cam = f'\
         rpicamsrc preview=false rotation=180 annotation-mode={annotation} name=src \
         bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
-        ! capsfilter caps={self.caps} name=caps \
+        ! capsfilter caps={stream_params} name=caps \
         ! h264parse \
-        ! queue \
-        ! rtspclientsink debug=false protocols=udp-mcast+udp \
-        location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec}'
+        ! queue name=pay0 \
+        ! rtsp. \
+        '
 
-        # ! timestampoverlay \ TODO use muxer
+            # ! textoverlay text="Reverse Camera: Disabled" valignment=top halignment=centre font-desc="Sans, 11" \
+        if self.second_cam:
+            cam_src = "v4l2src device=/dev/video1"
+        else:
+            cam_src = 'videotestsrc is-live=True pattern=black num-buffers=1 \
+            ! omxh264enc'
+        
+        rev_cam = f'\
+        {cam_src} \
+        ! {rev_cam_params} \
+        ! h264parse name=pay1 \
+        ! rtsp. \
+        '
+
+        rtsp_client = f'\
+        rtspclientsink debug=false protocols=udp-mcast+udp name=rtsp \
+        location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec} \
+        '
+
+        desc = primary_cam + rtsp_client + rev_cam
+
         return desc
 
 
@@ -168,12 +197,17 @@ class video_streamer:
         except socket.timeout:
             print("Timeout!, Marking status as degraded")
             status = str(Status.Degraded)
+        except socket.error as e:
+            print("Socket error %s, passing..." % e)
+        except Exception as e:
+            print("Unhandled Exception! Exiting... ",e)
+            exit(1)
         
         return status, rms_state
     
     def parse_status(self):
         status, rms_state = self.get_status()
-        print("Received Status: %s" % status)
+        print("Received Status: %s, RMS: %0d" % (status, rms_state))
 
         # TODO restore temporal changes
 
@@ -200,8 +234,26 @@ class video_streamer:
                 self.params.change_params(temporal=0, spatial=-1)
             elif rms_state == 0: # increasing rms
                 self.params.change_params(temporal=0, spatial=1)
+            elif int(self.rec_bitrate) > self.bitrate: #TODO trying it out
+                self.params.change_params(temporal=0, spatial=1)
         
         return
+    
+    def update_annotation(self):
+        framerate = self.params.get_temporal_res()
+        videosrc = self.pipeline.get_by_name("src")
+
+        bat_lvl = self.pijuice.status.GetChargeLevel()['data'] # Get battery level
+
+        rev_cam_status = "On" if self.second_cam else "Off"
+
+        annotation = ("Sender Bitrate %d Framerate %d  Receiver Bitrate %s \
+        Jitter %s Rev Camera: %s \nBattery: %0d%%     " %
+            (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter, rev_cam_status, bat_lvl))
+
+
+        videosrc.set_property("annotation-text", annotation)
+        return True
 
     def set_bitrate(self):
         videosrc = self.pipeline.get_by_name("src")
@@ -216,12 +268,8 @@ class video_streamer:
         # logging.debug(videocaps.get_property("caps").to_string())
         # videocaps.set_property("caps", Gst.Caps.from_string(self.caps))
         # logging.debug(videosrc.set_caps())
-        
         logging.debug("Updating video bitrate to {0}".format(self.bitrate))
         videosrc.set_property("bitrate", self.bitrate)
-        videosrc.set_property("annotation-text", 
-        "Sender Bitrate %d Framerate %d  Receiver Bitrate %s Jitter %s  " % 
-            (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter))
         return True
 
     def restart(self):
@@ -261,7 +309,10 @@ class video_streamer:
             self.restart()
         elif command == "[PIPE_RESTART]":
             self.restart()
-
+        elif command == "[TOGGLE_SEC_CAM]":
+            print("Toggling second camera from %s" % self.second_cam)
+            self.second_cam = not self.second_cam
+            self.restart()
 
 
     def get_commands(self):
@@ -289,10 +340,10 @@ class video_streamer:
         bus = self.pipeline.get_bus()
         bus.add_watch(0, self.bus_call, self.loop)
 
-
+        # Functions below are periodically called
         GLib.timeout_add_seconds(5, self.set_bitrate)
-
         GLib.timeout_add(50, self.get_commands)
+        GLib.timeout_add(500, self.update_annotation)
 
         # run
         self.pipeline.set_state(Gst.State.PLAYING)
@@ -315,4 +366,3 @@ if __name__ == "__main__":
 
     streamer = video_streamer(conf)
     streamer.launch()
-    print("FINSIHED")

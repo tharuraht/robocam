@@ -58,6 +58,9 @@ class Central_Control():
             if joymap[comm["TOGGLE_STATS"]]:
                 print("Toggling stats...")
                 self.streamer_q.put("[TOGGLE_STATS]")
+            if joymap[comm["TOGGLE_SEC_CAM"]]:
+                print("Toggling second camera...")
+                self.streamer_q.put("[TOGGLE_SEC_CAM]")
         else:
             print("Streamer control queue not set")
 

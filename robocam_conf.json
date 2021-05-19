@@ -8,7 +8,9 @@
     "comms_port": 5001,
     "gst_path": "/home/tharu/Downloads/gst-build/gst-env.py",
     "video_dir": "/home/tharu/Documents/robocam/host_machine/video_store",
-    "video_save_dur": 20000000000
+    "video_save_dur": 20000000000,
+    "open_upnp" : true,
+    "rec_latency": false
   },
   "pi":
   {

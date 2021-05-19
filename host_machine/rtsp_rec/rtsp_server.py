@@ -4,8 +4,6 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GstRtspServer', '1.0')
 gi.require_version('GstBase', '1.0')
 from gi.repository import Gst, GLib, GstBase, GObject, GstRtspServer, Gio, GstRtsp
-import subprocess
-import upnp_rtsp
 import json
 import ctypes
 
@@ -40,6 +38,8 @@ class RTSP_Server:
   latency = 100
   conf = None
   factory = None
+  server =  None
+  second_cam = True
 
   def __init__(self,conf):
     self.conf = conf
@@ -57,8 +57,9 @@ class RTSP_Server:
     save_dir = self.conf["host"]["video_dir"]
     duration = self.conf["host"]["video_save_dur"]
     print("Saving to %s" % save_dir)
-    return f'\
-    rtph264depay name=depay0\
+
+    primary_cam = f'\
+    rtph264depay name=depay1\
     ! queue \
     ! h264parse config-interval=1 name=parse \
     ! tee name=filesave \
@@ -70,12 +71,25 @@ class RTSP_Server:
     ! videoconvert \
     ! queue \
     ! autovideosink sync=false\
+    '
+    
+    filesink = f'\
     filesave. \
     ! queue \
-    ! h264parse \
-    ! splitmuxsink location={save_dir}/host_video%02d.mov max-size-time={duration}\
-    rtph264depay name=depay1 ! avdec_h264 ! videoconvert ! autovideosink sync=false\
+    ! multifilesink location={save_dir}/host_video%02d.mov max-file-duration={duration}\
     '
+
+    secondary_cam = '\
+    rtph264depay name=depay0 \
+    ! avdec_h264 \
+    ! videoconvert \
+    ! autovideosink sync=false\
+    '
+    pipeline = primary_cam + filesink
+    if self.second_cam:
+      pipeline += secondary_cam
+    return pipeline
+    
 
   def on_ssrc_active(self, session, source):
     stats = source.get_property("stats")
@@ -132,15 +146,11 @@ class RTSP_Server:
   def media_configure_cb(self, factory, media):
     media.connect("prepared", self.media_prepared_cb)
 
-
-  def create_element(self,url):
-    return self.pipeline
-
-
-  def launch(self):
-    server = GstRtspServer.RTSPServer.new()
-    server.set_service(self.port)
-    mounts = server.get_mount_points()
+  
+  def create_server(self):
+    self.server = GstRtspServer.RTSPServer.new()
+    self.server.set_service(self.port)
+    mounts = self.server.get_mount_points()
     factory = RTSP_Factory(self.get_pipeline())
     factory.set_latency(self.latency)
 
@@ -151,10 +161,13 @@ class RTSP_Server:
 
     # Dont reference factory after this point
     mounts.add_factory(self.mount_point, factory)
-    server.attach()
-
+    self.server.attach()
     #  start serving
     print ("stream ready at rtsp://127.0.0.1:" + self.port + "/test");
+
+
+  def launch(self):
+    self.create_server()
 
     loop = GLib.MainLoop()
     loop.run()

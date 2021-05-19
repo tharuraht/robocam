@@ -7,12 +7,12 @@ import csv
 
 def log_ports(ports):
   # Log the open ports
-  with open("open_ports.tmp", 'w', newline='') as f:
+  with open("tmp/open_ports.tmp", 'w', newline='') as f:
      wr = csv.writer(f, quoting=csv.QUOTE_NONE)
      wr.writerow(ports)
   
 def get_logged_ports():
-  with open('open_ports.tmp', newline='') as f:
+  with open('tmp/open_ports.tmp', newline='') as f:
     reader = csv.reader(f)
     data = list(reader)
     flat_data = [item for sublist in data for item in sublist]
@@ -55,7 +55,7 @@ def open_ports(ports):
     print('Exception :', e)
 
 def close_ports():
-  if os.path.exists('open_ports.tmp'):
+  if os.path.exists('tmp/open_ports.tmp'):
     ports = get_logged_ports()
 
     print ("Closing: ", ports)
@@ -73,14 +73,14 @@ def close_ports():
       # print("Releasing port",port)
       u.deleteportmapping(int(port), 'UDP')
     
-    os.remove('open_ports.tmp')
+    os.remove('tmp/open_ports.tmp')
   else:
     print("No open ports file")
 
 
 def open_upnp_ports(ports):
   #If file exists, check old ports first
-  if os.path.exists('open_ports.tmp'):
+  if os.path.exists('tmp/open_ports.tmp'):
     print ("File found checking...")
     old_ports = get_logged_ports()
 
@@ -95,6 +95,20 @@ def open_upnp_ports(ports):
   else:
     open_ports(ports)
 
+def open_new_ports(output):
+  print(output)
+  port_lines = output.splitlines()
+
+  ports = []
+  for line in port_lines:
+    port = line.split(':')[1].strip()
+    # print("port",port)
+    ports.append(int(port))
+
+  print(ports)
+  open_upnp_ports(ports)
+
+
 if __name__ == '__main__':
 
   assert len(sys.argv) <= 3
@@ -108,19 +122,7 @@ if __name__ == '__main__':
 
   if mode == 'SETUP':
     print ('Setting up RTSP upnp ports...')
-    
-    port_lines = output.splitlines()
-
-    ports = []
-    for line in port_lines:
-      port = line.split(':')[1].strip()
-      # print("port",port)
-      ports.append(int(port))
-
-    print(ports)
-
-    open_upnp_ports(ports)
-
+    open_new_ports(output)
 
   elif mode == 'CLOSE':
     print('close')

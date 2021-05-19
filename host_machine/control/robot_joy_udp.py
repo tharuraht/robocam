@@ -32,7 +32,8 @@ def send_map(joymap, conf):
     sock.sendto(dump.encode(),(addr, port))
     
 
-def control_loop(j, conf):
+def control_loop(conf):
+    j = joystick_init()
 
     prevmap = defaultdict(bool)
     try:
@@ -76,9 +77,7 @@ def main():
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
 
-    j = joystick_init()
-
-    control_loop(j, conf)
+    control_loop(conf)
 
 
 if __name__ == "__main__":

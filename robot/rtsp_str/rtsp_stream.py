@@ -82,7 +82,7 @@ class video_streamer:
     ctrl_q = None # Comands send from control
     rec_bitrate = rec_jitter = -1
     show_stats = True
-    second_cam = True
+    second_cam = False
     # Controls whether to show timestamp overlay for latency calculation
     timestampoverlay = False
 
@@ -147,7 +147,7 @@ class video_streamer:
             self.loop.quit()
             return
         elif msg.type == Gst.MessageType.ERROR:
-            logging.error("GST ERROR %s", msg.parse_error())
+            logging.error("GST ERROR %s" % msg.parse_error())
             self.loop.quit()
             sys.exit(1)
         elif msg.type == Gst.MessageType.STREAM_START:
@@ -361,7 +361,7 @@ if __name__ == "__main__":
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
     
-    # Configure Logger
+    # Configure Logger TODO change to use conf
     logging.basicConfig(format='%(asctime)s:%(filename)s:%(levelname)s:%(message)s', \
         level=logging.getLevelName(conf['log_level']))
 

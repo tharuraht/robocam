@@ -25,6 +25,7 @@
     "gst_path": "/home/pi/Downloads/gst-build/gst-env.py"
   },
   "log_level" : "DEBUG",
+  "log_format" : "%(asctime)s:%(filename)s:%(levelname)s:%(message)s",
   "controller_config":
   {
     "TOGGLE_STATS" : "b_2",

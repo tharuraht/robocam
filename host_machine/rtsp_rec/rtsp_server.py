@@ -6,12 +6,13 @@ gi.require_version('GstBase', '1.0')
 from gi.repository import Gst, GLib, GstBase, GObject, GstRtspServer, Gio, GstRtsp
 import json
 import ctypes
+import logging
 
 try:
     x11 = ctypes.cdll.LoadLibrary('libX11.so')
     x11.XInitThreads()
 except:
-    print ("Warning: failed to XInitThreads()")
+    logging.warning("Warning: failed to XInitThreads()")
 
 Gst.init(None)
 Gst.debug_set_active(True)
@@ -29,7 +30,7 @@ class RTSP_Factory(GstRtspServer.RTSPMediaFactory):
 
     def do_create_element(self, url):
         self.pipeline = Gst.parse_launch(self.pipeline_desc)
-        print("Using overriden pipeline creation")
+        logging.debug("Using overriden pipeline creation")
         return self.pipeline
 
 class RTSP_Server:
@@ -44,6 +45,8 @@ class RTSP_Server:
     def __init__(self,conf, ctrl_rec_q = None):
         self.conf = conf
         self.ctrl_q = ctrl_rec_q
+        logging.basicConfig(format=conf['log_format'], \
+            level=logging.getLevelName(conf['log_level']))
   
   # def probe_callback(self,pad,info): 
   #     dts = info.get_buffer().dts
@@ -57,7 +60,7 @@ class RTSP_Server:
     def get_pipeline(self):
         save_dir = self.conf["host"]["video_dir"]
         duration = self.conf["host"]["video_save_dur"]
-        print("Saving to %s" % save_dir)
+        logging.debug("Saving to %s" % save_dir)
 
 
         primary_cam = f'\
@@ -109,17 +112,17 @@ class RTSP_Server:
 
     def media_prepared_cb(self, media):
         n_streams = media.n_streams()
-        print("Media %s is prepared and has %0d streams" % (media, n_streams))
+        logging.debug("Media %s is prepared and has %0d streams" % (media, n_streams))
 
         for i in range(n_streams):
             stream = media.get_stream(i)
 
         if stream is None:
-            print("No stream present")
+            logging.debug("No stream present")
             return
         
         session = stream.get_rtpsession()
-        print("Watching session %s on stream %0d" % (session,i))
+        logging.debug("Watching session %s on stream %0d" % (session,i))
 
         # print(dir(stream))
         # rtcp_range = stream.get_server_port(Gio.SocketFamily.IPV4)
@@ -165,7 +168,7 @@ class RTSP_Server:
         mounts.add_factory(self.mount_point, factory)
         self.server.attach()
         #  start serving
-        print ("stream ready at rtsp://127.0.0.1:" + self.port + "/test");
+        logging.info("stream ready at rtsp://127.0.0.1:" + self.port + "/test");
 
     def parse_commands(self, command):
         pass
@@ -175,10 +178,10 @@ class RTSP_Server:
             # print("Parsing commands from queue")
             if not self.ctrl_q.empty():
                 command = self.ctrl_q.get(False)
-                print("Command received:", command)
+                logging.debug("Command received:", command)
                 self.parse_commands(command)
         else:
-            print("No control queue set")
+            logging.warning("No control queue set")
         return True
 
     def launch(self):

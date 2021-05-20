@@ -4,6 +4,13 @@ import socket
 import sys
 import os
 import csv
+import json
+import logging
+
+with open("robocam_conf.json") as f:
+  conf = json.load(f)
+logging.basicConfig(format=conf['log_format'], \
+  level=logging.getLevelName(conf['log_level']))
 
 def log_ports(ports):
   # Log the open ports
@@ -34,31 +41,31 @@ def open_ports(ports):
     u.selectigd()
     
     # display information about the IGD and the internet connection
-    print('local ip address :', u.lanaddr)
-    print('external ip address :', u.externalipaddress)
-    print(u.statusinfo(), u.connectiontype())
+    logging.debug('local ip address : %s'% u.lanaddr)
+    logging.debug('external ip address : %s'% u.externalipaddress)
+    logging.debug(f"{u.statusinfo()}, {u.connectiontype()}")
 
     for port in ports:
       mode = 'UDP'
       # find a free port for the redirection
       r = u.getspecificportmapping(port, mode)
       b = u.addportmapping(port, mode, u.lanaddr, port,
-                          'UPnP IGD Tester port %u' % port, '')
+                          'Robocam UPnP IGD port %u' % port, '')
       if b:
-        print('Success, bound to eport %0d' % port)
+        logging.info('Success, bound to eport %0d' % port)
       else:
-        print('Failed')
+        logging.warning('Failed')
     
     #Log ports if successful
     log_ports(ports)
   except Exception as e:
-    print('Exception :', e)
+    logging.exception(('Exception : %s' % e))
 
 def close_ports():
   if os.path.exists('tmp/open_ports.tmp'):
     ports = get_logged_ports()
 
-    print ("Closing: ", ports)
+    logging.info("Closing: ", ports)
   
     u = miniupnpc.UPnP()
     u.discoverdelay = 200
@@ -75,28 +82,28 @@ def close_ports():
     
     os.remove('tmp/open_ports.tmp')
   else:
-    print("No open ports file")
+    logging.warning("No open ports file")
 
 
 def open_upnp_ports(ports):
   #If file exists, check old ports first
   if os.path.exists('tmp/open_ports.tmp'):
-    print ("File found checking...")
+    logging.debug ("File found checking...")
     old_ports = get_logged_ports()
 
     old_ports = list(map(int, old_ports)) # converts strings to ints
     # print(set(ports), set(old_ports))
     if set(ports) != set(old_ports):
-      print('New ports defined, removing old ports...')
+      logging.debug('New ports defined, removing old ports...')
       close_ports()
       open_ports(ports)
     else:
-      print("Same ports, no change needed")
+      logging.debug("Same ports, no change needed")
   else:
     open_ports(ports)
 
 def open_new_ports(output):
-  print(output)
+  logging.debug(output)
   port_lines = output.splitlines()
 
   ports = []
@@ -105,7 +112,7 @@ def open_new_ports(output):
     # print("port",port)
     ports.append(int(port))
 
-  print(ports)
+  logging.info(f"Opening ports: {ports}")
   open_upnp_ports(ports)
 
 
@@ -121,11 +128,11 @@ if __name__ == '__main__':
 
 
   if mode == 'SETUP':
-    print ('Setting up RTSP upnp ports...')
+    logging.info('Setting up RTSP upnp ports...')
     open_new_ports(output)
 
   elif mode == 'CLOSE':
-    print('close')
+    logging.info('Closing ports')
     close_ports()
   else:
     raise Exception("Invalid Mode")

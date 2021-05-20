@@ -5,6 +5,7 @@ from enum import Enum
 import json
 import socket
 import os
+import logging
 
 def rms(bitrates):
   sum_squared = sum(map(lambda x:x*x,bitrates))
@@ -65,24 +66,24 @@ class PS_Bitrate:
   repeats = int(measure_time/period)
 
   def __init__(self, conf):
-    print("No. of measurements:", self.repeats)
     self.conf = conf
+    logging.basicConfig(format=conf['log_format'], \
+      level=logging.getLevelName(conf['log_level']))
 
+    logging.debug("No. of measurements: %0d" % self.repeats)
 
   def measure(self):
     intf = self.conf['host']['stream_rec_intf']
     rates= []
     try:
       for _ in range(self.repeats):
-        # print(iostat['wg0'].bytes_recv)
         start_count = psutil.net_io_counters(pernic=True)[intf].bytes_recv
         time.sleep(self.period)
         end_count =  psutil.net_io_counters(pernic=True)[intf].bytes_recv
         rate = int(8*((end_count - start_count)/self.period))
-        # print(rate)
         rates.append(rate)
     finally:
-      print(rates)
+      logging.debug(f"Measured rates: {rates}")
       return rates
 
 
@@ -91,17 +92,17 @@ class PS_Bitrate:
     median = bitrates[int(len(bitrates)/2)]
     end = bitrates[-1]
 
-    print(start,median,end)
+    logging.debug(start,median,end)
 
     # If all are zero, ignore
     if all(rates == 0 for rates in bitrates):
       return Observation.gamma
     
     if start <= median <= end:
-      print('Monotonicaly increasing')
+      logging.debug('Monotonicaly increasing')
       return Observation.beta
     elif start >= median >= end:
-      print('Monotonicaly decreasing')
+      logging.debug('Monotonicaly decreasing')
       return Observation.alpha
     else:
       return Observation.gamma
@@ -109,15 +110,15 @@ class PS_Bitrate:
   def find_rms(self, bitrates):
     total_rms = rms(bitrates)
 
-    print("Total rms", total_rms)
+    logging.debug("Total rms %0d" % total_rms)
 
     # Split into 3 parts and find each rms
     rms1, rms2, rms3 = [rms(part) for part in split(bitrates, 3)]
-    print(rms1,rms2,rms3)
+    logging.debug(rms1,rms2,rms3)
 
     # Find diff between rms of each part and total rms
     diff1, diff2, diff3 = [(total_rms - rmsn) for rmsn in [rms1,rms2,rms3]]
-    print(diff1,diff2,diff3)
+    logging.debug(diff1,diff2,diff3)
 
     if diff1 <= diff2 <= diff3:
       return 1 #decreasing rms
@@ -149,12 +150,10 @@ class PS_Bitrate:
       if min([v1,v2,v3]) == v2:
         L_min.append(v2)
 
-    # print(L_max)
-    # print(L_min)
     max_obv = self.analyse(L_max)
     min_obv = self.analyse(L_min)
 
-    print(max_obv, min_obv)
+    logging.debug(max_obv, min_obv)
 
     cur_rms = -1 # Only set when non monotonic
     if max_obv == Observation.beta and min_obv == Observation.beta:
@@ -169,22 +168,22 @@ class PS_Bitrate:
       status = Status.Non_Monotonic
       cur_rms = self.find_rms(bitrates)
     
-    print("Status:",status)
+    logging.info("Status: %s" % status)
     if status == Status.Non_Monotonic:
-      print("Current rms state:",cur_rms)
+      logging.info("Current rms state %0d" % cur_rms)
 
     return status, cur_rms
   
   def start(self):
     tcp_port = self.conf['host']['comms_port']
 
-    print(f'Hosting server on port {tcp_port}')
+    logging.info(f'Hosting server on port {tcp_port}')
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.settimeout(1.0)
     s.bind(('', tcp_port))
     s.listen()
-    print("Server is open to connections")
+    logging.info("Server is open to connections")
     conn = None
 
     while True:
@@ -192,16 +191,16 @@ class PS_Bitrate:
             conn, addr = s.accept()
         except socket.timeout as e:
             continue
-        # print("Connection address:", addr)
+        logging.debug("Connection address: %s" % addr)
         if addr[0] == self.conf['pi']['vpn_addr']:
             # Measure bitrate and send to pi
             status, cur_rms = self.get_status()
             # Serialise and send to pi
             dump = json_dump([str(status), cur_rms])
-            print('Sending', dump)
+            logging.debug('Sending', dump)
             conn.sendall(dump.encode('utf-8'))
         else:
-            print(f'{addr} is not a valid source address')
+            logging.warning(f'{addr} is not a valid source address')
         conn.close()
 
 

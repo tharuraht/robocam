@@ -3,7 +3,7 @@
   {
     "stream_rec_port": 5000,
     "stream_rec_intf": "wlp4s0",
-    "stream_hostname": "4grobo.zapto.org",
+    "stream_hostname": "10.200.200.1",
     "vpn_addr": "10.200.200.1",
     "comms_port": 5001,
     "gst_path": "/home/tharu/Downloads/gst-build/gst-env.py",

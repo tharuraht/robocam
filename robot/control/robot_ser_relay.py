@@ -31,7 +31,7 @@ class Serial_Relay():
         # Check for arduino port
         self.find_device()
         if self.device_found:
-            self.ser = connect_serial()
+            self.ser = self.connect_serial()
             print(f"Arduino connected at port {self.dev_port}")
         
 
@@ -44,11 +44,11 @@ class Serial_Relay():
     
 
     def find_device(self):
-        p=subprocess.run(["ls", "/dev/ttyUSB*"], shell=False, stdout=subprocess.PIPE, universal_newlines=True)
+        p=subprocess.run(["ls /dev/ttyUSB*"], shell=True, stdout=subprocess.PIPE, universal_newlines=True)
         if p.returncode == 0:
             self.device_found = True
             print(p.stdout)
-            self.dev_port = p.stdout
+            self.dev_port = p.stdout.strip()
 
     def connect_serial(self):
         try:
@@ -57,7 +57,6 @@ class Serial_Relay():
             ser = serial.Serial(self.dev_port, 9800, timeout=1)
         except Exception as e:
             logging.exception(e)
-            upnp.close_port()
             exit(1)
         return ser
 
@@ -69,7 +68,7 @@ class Serial_Relay():
         """
         if self.device_found:
             logging.debug(f"Writing {msg} to serial port...")
-            self.ser.write(msg)
+            self.ser.write(msg.encode('utf-8'))
 
 
     def run(self):

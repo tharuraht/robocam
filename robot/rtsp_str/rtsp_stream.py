@@ -244,12 +244,13 @@ class video_streamer:
         videosrc = self.pipeline.get_by_name("src")
 
         bat_lvl = self.pijuice.status.GetChargeLevel()['data'] # Get battery level
+        charge_stat = self.pijuice.status.GetStatus()['data']['powerInput']
 
         rev_cam_status = "On" if self.second_cam else "Off"
 
         annotation = ("Sender Bitrate %d Framerate %d  Receiver Bitrate %s \
-        Jitter %s Rev Camera: %s \nBattery: %0d%%     " %
-            (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter, rev_cam_status, bat_lvl))
+        Jitter %s Rev Camera: %s \nBattery: %0d%% External Power: %s   " %
+            (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter, rev_cam_status, bat_lvl, charge_stat))
 
 
         videosrc.set_property("annotation-text", annotation)

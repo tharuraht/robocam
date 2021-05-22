@@ -61,7 +61,7 @@ class Observation(Enum):
   gamma = 3
 
 class PS_Bitrate:
-  measure_time = 2
+  measure_time = 3
   period = 0.03
   repeats = int(measure_time/period)
 
@@ -92,7 +92,7 @@ class PS_Bitrate:
     median = bitrates[int(len(bitrates)/2)]
     end = bitrates[-1]
 
-    logging.debug(start,median,end)
+    # logging.debug(start,median,end)
 
     # If all are zero, ignore
     if all(rates == 0 for rates in bitrates):
@@ -114,11 +114,11 @@ class PS_Bitrate:
 
     # Split into 3 parts and find each rms
     rms1, rms2, rms3 = [rms(part) for part in split(bitrates, 3)]
-    logging.debug(rms1,rms2,rms3)
+    # logging.debug(rms1,rms2,rms3)
 
     # Find diff between rms of each part and total rms
     diff1, diff2, diff3 = [(total_rms - rmsn) for rmsn in [rms1,rms2,rms3]]
-    logging.debug(diff1,diff2,diff3)
+    # logging.debug(diff1,diff2,diff3)
 
     if diff1 <= diff2 <= diff3:
       return 1 #decreasing rms
@@ -153,7 +153,7 @@ class PS_Bitrate:
     max_obv = self.analyse(L_max)
     min_obv = self.analyse(L_min)
 
-    logging.debug(max_obv, min_obv)
+    logging.debug("%s %s" % (max_obv, min_obv))
 
     cur_rms = -1 # Only set when non monotonic
     if max_obv == Observation.beta and min_obv == Observation.beta:
@@ -191,13 +191,13 @@ class PS_Bitrate:
             conn, addr = s.accept()
         except socket.timeout as e:
             continue
-        logging.debug("Connection address: %s" % addr)
+        logging.debug(f"Connection address: {addr}")
         if addr[0] == self.conf['pi']['vpn_addr']:
             # Measure bitrate and send to pi
             status, cur_rms = self.get_status()
             # Serialise and send to pi
             dump = json_dump([str(status), cur_rms])
-            logging.debug('Sending', dump)
+            logging.debug(f'Sending {dump}')
             conn.sendall(dump.encode('utf-8'))
         else:
             logging.warning(f'{addr} is not a valid source address')

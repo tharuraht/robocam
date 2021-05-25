@@ -41,6 +41,6 @@ mkdir -p tmp
 python3 ps_bitrate.py &    # Bitrate profiler and RTCP Stats
 $GST_PATH  $RTSP_PATH/rtsp_server.py  &  # RTSP Streamer
 open_upnp &                       # Upnp port generator
-$ROBOCAM_DIR/host_machine/control/robot_joy_udp.py # Robot platform controller
+$ROBOCAM_DIR/host_machine/control/robot_control.py # Robot platform controller
 wait
 

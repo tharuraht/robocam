@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
-# Enables the joystick to be attached to one computer while a different computer
-# connected to the same LAN communicates with the car by BLE. The connection
-# between the two uses UDP.
-# Based on work from Dr. Adria Junyent-Ferre
-# https://hackaday.io/project/170624-wi-fi-controlled-car-turtle-bot-with-fpv
 import time
 import pygame
 import socket
 import json
 from collections import defaultdict
-
 
 def joystick_init():
     pygame.init()

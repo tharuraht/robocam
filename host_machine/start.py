@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # https://stackoverflow.com/questions/43861164/passing-data-between-separately-running-python-scripts
 from multiprocessing import Process, Queue
-from control import robot_joy_udp
+from control import robot_control
 from rtsp_rec import rtsp_server, upnp_rtsp, ps_bitrate
 import json
 import os
@@ -43,7 +43,7 @@ def main():
         rec = rtsp_server.RTSP_Server(conf,ctrl_rec_q)
         ps = ps_bitrate.PS_Bitrate(conf)
 
-        ctrl_p = Process(target=robot_joy_udp.control_loop, daemon=True, args=(conf,ctrl_rec_q,))
+        ctrl_p = Process(target=robot_control.control_loop, daemon=True, args=(conf,ctrl_rec_q,))
         ctrl_p.start()
 
         rec_p = Process(target=rec.launch)

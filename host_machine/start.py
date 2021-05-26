@@ -20,7 +20,7 @@ def open_upnp():
             if res.stdout != prev_res:
                 upnp_rtsp.open_new_ports(out)
                 prev_res = res.stdout
-        
+
 def cleanup(conf):
     print("Cleanup")
     if conf["host"]["open_upnp"]:
@@ -56,7 +56,7 @@ def main():
             print("Upnp port opener active")
             upnp_p = Process(target=open_upnp, daemon=True)
             upnp_p.start()
-            
+
 
         while True:
             time.sleep(5)
@@ -71,7 +71,7 @@ def main():
         print(e)
         cleanup(conf)
 
-    
+
 
 if __name__ == "__main__":
     main()

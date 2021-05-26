@@ -7,6 +7,7 @@ from gi.repository import Gst, GLib, GstBase, GObject, GstRtspServer, Gio, GstRt
 import json
 import ctypes
 import logging
+import os
 
 try:
     x11 = ctypes.cdll.LoadLibrary('libX11.so')
@@ -59,6 +60,11 @@ class RTSP_Server:
 
     def get_pipeline(self):
         save_dir = self.conf["host"]["video_dir"]
+        if not os.path.exists(save_dir):
+            logging.warning("Save directory doesn't exist, using default...")
+            os.mkdir("/tmp/robocam_video/")
+            save_dir = "/tmp/robocam_video/"
+
         duration = self.conf["host"]["video_save_dur"]
         logging.debug("Saving to %s" % save_dir)
 

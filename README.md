@@ -8,3 +8,9 @@
 - change RTSP config to use Secure RTP (see profiles option for rtsp client sink)
 - enable username and password for RTSP
 - add overlay showing connection information to pi
+
+## Libraries
+
+- sh: https://github.com/amoffat/sh
+- pygame
+- psutil

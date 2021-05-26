@@ -18,13 +18,16 @@ def joystick_init():
     return j
 
 def send_map(joymap, conf):
+    """
+    Serialise data into JSON format, and sent via UDP
+    """
     port = conf['pi']['control_port']
     addr = conf['pi']['vpn_addr']
 
     dump = json.dumps(joymap)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(dump.encode(),(addr, port))
-    
+
 def parse_map(joymap, conf, rec_ctrl):
     comm = conf["controller_config"]
 

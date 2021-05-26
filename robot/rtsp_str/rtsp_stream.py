@@ -32,7 +32,7 @@ class Anno_modes(Enum):
     black_bg = 0x00000400
 
 class Video_params:
-    temporal_res = [10,15,25,30,40]
+    temporal_res = [15,25,30,40]
     spatial_res = [100000, 300000, 600000, 1000000, 2000000, 5000000, 7000000, 10000000]
 
     def __init__(self):
@@ -90,14 +90,13 @@ class video_streamer:
     def __init__(self, conf, ctrl_streamer_q = None):
         self.conf = conf
         self.bitrate = conf['pi']['starting_bitrate']
-        self.caps = self.conf['pi']['raw_stream_params']
+        self.caps = self.conf['pi']['stream_params']
         self.ctrl_q = ctrl_streamer_q
 
     def get_pipeline_desc(self):
         hostip = self.conf['host']['stream_hostname']
         hostport = self.conf['host']['stream_rec_port']
         fec = self.conf['pi']['fec_percentage']
-        stream_params = self.conf['pi']['stream_params']
         rev_cam_params = self.conf['pi']['rev_cam_params']
 
         
@@ -110,7 +109,7 @@ class video_streamer:
         primary_cam = f'\
         rpicamsrc preview=false rotation=180 annotation-mode={annotation} name=src \
         bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
-        ! capsfilter caps={stream_params} name=caps \
+        ! capsfilter caps={self.caps} name=caps \
         ! h264parse \
         ! queue name=pay0 \
         ! rtsp. \
@@ -118,7 +117,7 @@ class video_streamer:
 
             # ! textoverlay text="Reverse Camera: Disabled" valignment=top halignment=centre font-desc="Sans, 11" \
         if self.second_cam:
-            cam_src = "v4l2src device=/dev/video1"
+            cam_src = "v4l2src device=/dev/video0"
         else:
             cam_src = 'videotestsrc is-live=True pattern=black num-buffers=1 \
             ! omxh264enc'
@@ -147,7 +146,7 @@ class video_streamer:
             self.loop.quit()
             return
         elif msg.type == Gst.MessageType.ERROR:
-            logging.error("GST ERROR %s" % msg.parse_error())
+            logging.error(f"GST ERROR {msg.parse_error()}")
             self.loop.quit()
             sys.exit(1)
         elif msg.type == Gst.MessageType.STREAM_START:
@@ -173,7 +172,7 @@ class video_streamer:
 
         rate = 0
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(2.5)
+        s.settimeout(0.5)
 
         try:
             s.connect((tcp_ip, tcp_port))
@@ -212,16 +211,11 @@ class video_streamer:
         # TODO restore temporal changes
 
         if status == str(Status.Progressive):
-            #Increase bitrate and framerate
-            # self.params.change_params(temporal=1, spatial=1)
             self.params.change_params(temporal=0, spatial=1)
         elif status == str(Status.Stable):
-            #TODO Increase temporal resolution
-            # self.params.change_params(temporal=1, spatial=0)
             self.params.change_params(temporal=0, spatial=0)
         elif status == str(Status.Fluctuated):
-            #TODO do nothing
-            pass
+            self.params.change_params(temporal=0, spatial=0)
         elif status == str(Status.Degraded):
             # reduce both spatial and temporal res
             # self.params.change_params(temporal=-1, spatial=-1)
@@ -275,14 +269,15 @@ class video_streamer:
 
     def restart(self):
         print("RESTARTING")
+        self.pipeline.set_state(Gst.State.PAUSED)
         self.pipeline.set_state(Gst.State.READY)
-        self.pipeline.set_state(Gst.State.NULL)
-        time.sleep(1)
-        self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
+        # self.pipeline.set_state(Gst.State.NULL)
+        # time.sleep(1)
+        # self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
         # time.sleep(1)
 
-        bus = self.pipeline.get_bus()
-        bus.add_watch(0, self.bus_call, self.loop)
+        # bus = self.pipeline.get_bus()
+        # bus.add_watch(0, self.bus_call, self.loop)
 
 
         self.pipeline.set_state(Gst.State.PLAYING)
@@ -319,7 +314,7 @@ class video_streamer:
     def get_commands(self):
         if self.ctrl_q is not None:
             # print("Parsing commands from queue")
-            if not self.ctrl_q.empty():
+            while not self.ctrl_q.empty():
                 command = self.ctrl_q.get(False)
                 print("Command received:", command)
                 self.parse_commands(command)

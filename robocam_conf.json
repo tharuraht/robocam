@@ -22,7 +22,8 @@
     "rev_cam_params" : "video/x-h264,width=640,height=480",
     "starting_bitrate": 200000,
     "fec_percentage": 5,
-    "gst_path": "/home/pi/Downloads/gst-build/gst-env.py"
+    "gst_path": "/home/pi/Downloads/gst-build/gst-env.py",
+    "video_dir": "/media/usb/robocam_videos"
   },
   "log_level" : "DEBUG",
   "log_format" : "%(asctime)s:%(filename)s:%(levelname)s:%(message)s",

@@ -40,27 +40,30 @@ class Central_Control():
             self.relay.write_dev("{:.0f},{:.0f}".format(joymap['x'],joymap['y']))
 
         if self.streamer_q is not None:
-            if joymap[comm["RESTART_PI"]]:
-                print("Restarting Pi")
-                # TODO shutdown all and restart pi
-            
-            if joymap[comm["RESTART_STREAM"]]:
-                self.streamer_q.put("[PIPE_RESTART]")
+            try:
+                if joymap[comm["RESTART_PI"]]:
+                    print("Restarting Pi")
+                    # TODO shutdown all and restart pi
+                
+                if joymap[comm["RESTART_STREAM"]]:
+                    self.streamer_q.put("[PIPE_RESTART]")
 
-            if joymap[comm["INC_FPS"]]:
-                print("Increasing FPS")
-                self.streamer_q.put("[INC_FPS]")
-            elif joymap[comm["DEC_FPS"]]:
-                print("Decreasing FPS")
-                self.streamer_q.put("[DEC_FPS]")
+                if joymap[comm["INC_FPS"]]:
+                    print("Increasing FPS")
+                    self.streamer_q.put("[INC_FPS]")
+                elif joymap[comm["DEC_FPS"]]:
+                    print("Decreasing FPS")
+                    self.streamer_q.put("[DEC_FPS]")
 
-            # Toggle stats
-            if joymap[comm["TOGGLE_STATS"]]:
-                print("Toggling stats...")
-                self.streamer_q.put("[TOGGLE_STATS]")
-            if joymap[comm["TOGGLE_SEC_CAM"]]:
-                print("Toggling second camera...")
-                self.streamer_q.put("[TOGGLE_SEC_CAM]")
+                # Toggle stats
+                if joymap[comm["TOGGLE_STATS"]]:
+                    print("Toggling stats...")
+                    self.streamer_q.put("[TOGGLE_STATS]")
+                if joymap[comm["TOGGLE_SEC_CAM"]]:
+                    print("Toggling second camera...")
+                    self.streamer_q.put("[TOGGLE_SEC_CAM]")
+            except KeyError:
+                pass
         else:
             print("Streamer control queue not set")
 

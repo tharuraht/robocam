@@ -29,10 +29,14 @@ def main():
             if not streamer_p.is_alive():
                 streamer_p = Process(target=streamer.launch)
                 streamer_p.start()
+            
+            if not ctrl_p.is_alive():
+                ctrl_p = Process(target=ctrl.control_loop, daemon=True)
+                ctrl_p.start()
 
-
-        ctrl_p.join()
+        # ctrl_p.join()
     finally:
+        print("Cleanup")
         for proc in [ctrl_p, streamer_p]:
             if proc.is_alive():
                 proc.terminate()

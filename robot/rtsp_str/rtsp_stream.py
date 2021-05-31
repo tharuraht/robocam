@@ -32,7 +32,7 @@ class Anno_modes(Enum):
     black_bg = 0x00000400
 
 class Video_params:
-    temporal_res = [10,15,25,30,40]
+    temporal_res = [15,25,30,40]
     spatial_res = [100000, 300000, 600000, 1000000, 2000000, 5000000, 7000000, 10000000]
 
     def __init__(self):
@@ -90,15 +90,15 @@ class video_streamer:
     def __init__(self, conf, ctrl_streamer_q = None):
         self.conf = conf
         self.bitrate = conf['pi']['starting_bitrate']
-        self.caps = self.conf['pi']['raw_stream_params']
+        self.caps = self.conf['pi']['stream_params']
         self.ctrl_q = ctrl_streamer_q
 
     def get_pipeline_desc(self):
         hostip = self.conf['host']['stream_hostname']
         hostport = self.conf['host']['stream_rec_port']
         fec = self.conf['pi']['fec_percentage']
-        stream_params = self.conf['pi']['stream_params']
         rev_cam_params = self.conf['pi']['rev_cam_params']
+        rev_cam_dir = self.conf['pi']['rev_cam_dir']
 
         
         annotation = Anno_modes.date.value + Anno_modes.time.value + Anno_modes.black_bg.value
@@ -110,7 +110,7 @@ class video_streamer:
         primary_cam = f'\
         rpicamsrc preview=false rotation=180 annotation-mode={annotation} name=src \
         bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
-        ! capsfilter caps={stream_params} name=caps \
+        ! capsfilter caps={self.caps} name=caps \
         ! h264parse \
         ! queue name=pay0 \
         ! rtsp. \
@@ -118,7 +118,7 @@ class video_streamer:
 
             # ! textoverlay text="Reverse Camera: Disabled" valignment=top halignment=centre font-desc="Sans, 11" \
         if self.second_cam:
-            cam_src = "v4l2src device=/dev/video1"
+            cam_src = f"v4l2src device={rev_cam_dir}"
         else:
             cam_src = 'videotestsrc is-live=True pattern=black num-buffers=1 \
             ! omxh264enc'
@@ -141,13 +141,12 @@ class video_streamer:
 
 
     def bus_call(self, bus, msg, *args):
-        # print("BUSCALL", msg, msg.type, *args)
         if msg.type == Gst.MessageType.EOS:
             logging.info("End-of-stream")
             self.loop.quit()
             return
         elif msg.type == Gst.MessageType.ERROR:
-            logging.error("GST ERROR %s" % msg.parse_error())
+            logging.error(f"GST ERROR {msg.parse_error()}")
             self.loop.quit()
             sys.exit(1)
         elif msg.type == Gst.MessageType.STREAM_START:
@@ -173,7 +172,7 @@ class video_streamer:
 
         rate = 0
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(2.5)
+        s.settimeout(0.5)
 
         try:
             s.connect((tcp_ip, tcp_port))
@@ -182,46 +181,40 @@ class video_streamer:
                 data = s.recv(buff_sz)
                 if data:
                     msg = data.decode('utf-8')
-                    # print('msg',msg)
                     dict = json.loads(msg)
-                    print(dict)
+                    logging.debug(f"Received message: {dict}")
                     t = time.localtime()
                     current_time = time.strftime("%H:%M:%S", t)
                     if 'BITRATE_STATE' in dict:
-                        print(dict['BITRATE_STATE']['TIMESTAMP'], current_time)
+                        logging.debug(f"Timestamps - message:{dict['BITRATE_STATE']['TIMESTAMP']}, current:{current_time}")
                         status, rms_state = dict['BITRATE_STATE']['PARAMS']
                     if 'RTCP_STATS' in dict:
                         self.rec_bitrate, self.rec_jitter = dict['RTCP_STATS']['PARAMS']
                 else:
                     break
         except socket.timeout:
-            print("Timeout!, Marking status as degraded")
+            logging.warning("Timeout!, Marking status as degraded")
             status = str(Status.Degraded)
         except socket.error as e:
-            print("Socket error %s, passing..." % e)
+            logging.warning("Socket error %s, passing..." % e)
         except Exception as e:
-            print("Unhandled Exception! Exiting... ",e)
+            logging.Exception("Unhandled Exception! Exiting... ",e)
             exit(1)
         
         return status, rms_state
     
     def parse_status(self):
         status, rms_state = self.get_status()
-        print("Received Status: %s, RMS: %0d" % (status, rms_state))
+        logging.debug("Received Status: %s, RMS: %0d" % (status, rms_state))
 
         # TODO restore temporal changes
 
         if status == str(Status.Progressive):
-            #Increase bitrate and framerate
-            # self.params.change_params(temporal=1, spatial=1)
             self.params.change_params(temporal=0, spatial=1)
         elif status == str(Status.Stable):
-            #TODO Increase temporal resolution
-            # self.params.change_params(temporal=1, spatial=0)
             self.params.change_params(temporal=0, spatial=0)
         elif status == str(Status.Fluctuated):
-            #TODO do nothing
-            pass
+            self.params.change_params(temporal=0, spatial=0)
         elif status == str(Status.Degraded):
             # reduce both spatial and temporal res
             # self.params.change_params(temporal=-1, spatial=-1)
@@ -274,12 +267,10 @@ class video_streamer:
         return True
 
     def restart(self):
-        print("RESTARTING")
+        logging.info("Restarting Pipeline")
         self.pipeline.set_state(Gst.State.READY)
         self.pipeline.set_state(Gst.State.NULL)
-        time.sleep(1)
         self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
-        # time.sleep(1)
 
         bus = self.pipeline.get_bus()
         bus.add_watch(0, self.bus_call, self.loop)
@@ -289,13 +280,11 @@ class video_streamer:
         return True
 
     def parse_commands(self, command):
-        #TODO parse commands
         if command == "[TOGGLE_STATS]":
             self.show_stats = not self.show_stats
             annotation = Anno_modes.date.value + Anno_modes.time.value + Anno_modes.black_bg.value
             if self.show_stats:
                 annotation += Anno_modes.custom_text.value
-            print("Show stats:",self.show_stats)
             videosrc = self.pipeline.get_by_name("src")
             videosrc.set_property("annotation-mode", annotation)
         elif command == "[INC_FPS]":
@@ -311,29 +300,28 @@ class video_streamer:
         elif command == "[PIPE_RESTART]":
             self.restart()
         elif command == "[TOGGLE_SEC_CAM]":
-            print("Toggling second camera from %s" % self.second_cam)
             self.second_cam = not self.second_cam
+            logging.info("Toggling second camera to %s" % self.second_cam)
             self.restart()
 
 
     def get_commands(self):
         if self.ctrl_q is not None:
-            # print("Parsing commands from queue")
-            if not self.ctrl_q.empty():
+            while not self.ctrl_q.empty():
                 command = self.ctrl_q.get(False)
-                print("Command received:", command)
+                loggingl.debug(f"Command received: {command}")
                 self.parse_commands(command)
         else:
-            print("No control queue set")
+            logging.warning("No control queue set")
         return True
 
 
     def launch(self):
-        print("Launching stream")
+        logging.info("Launching RTSP stream")
         self.pipeline = Gst.parse_launch(self.get_pipeline_desc())
 
         if self.pipeline == None:
-            print ("Failed to create pipeline")
+            logging.Exception("Failed to create pipeline")
             sys.exit(0)
 
         # watch for messages on the pipeline's bus (note that this will only
@@ -351,7 +339,7 @@ class video_streamer:
         try:
             self.loop.run()
         except Exception as e:
-            print(e)
+            logging.Exception(e)
         finally:
             # cleanup
             self.pipeline.set_state(Gst.State.NULL)
@@ -361,8 +349,7 @@ if __name__ == "__main__":
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
     
-    # Configure Logger TODO change to use conf
-    logging.basicConfig(format='%(asctime)s:%(filename)s:%(levelname)s:%(message)s', \
+    logging.basicConfig(format=self.conf['log_format'], \
         level=logging.getLevelName(conf['log_level']))
 
     streamer = video_streamer(conf)

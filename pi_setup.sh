@@ -6,4 +6,7 @@ GST_PATH=/home/pi/Downloads/gst-build/gst-env.py
 # export GST_DEBUG=timestampoverlay:5,timeoverlayparse:5
 # export GST_DEBUG=4
 
+# Mount USB
+sudo mount -o umask=0 /dev/sda1 /media/usb
+
 $GST_PATH robot/start.py

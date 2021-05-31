@@ -11,6 +11,5 @@
 
 ## Libraries
 
-- sh: https://github.com/amoffat/sh
 - pygame
 - psutil

@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-# #SERVER=4grobo.zapto.org
-# SERVER=10.200.200.1
-
-# gst-launch-1.0 rpicamsrc annotation-mode=time preview=false vflip=true bitrate=100000 keyframe-interval=-1 ! \
-# 	video/x-h264, framerate=25/1, height=720, width=1280 ! h264parse ! \
-# 	rtspclientsink debug=true protocls=udp-mcast+udp location=rtsp://$SERVER:5000/test latency=0 ulpfec-percentage=10
-
 # http://lifestyletransfer.com/how-to-launch-gstreamer-pipeline-in-python/
 
 import sys
@@ -100,7 +93,17 @@ class video_streamer:
         rev_cam_params = self.conf['pi']['rev_cam_params']
         rev_cam_dir = self.conf['pi']['rev_cam_dir']
 
-        
+        save_dir = self.conf["pi"]["video_dir"]
+        tmp_dir = '/tmp/robocam_video/'
+        # if True:
+        if not os.path.exists(save_dir):
+            logging.warning("Save directory doesn't exist, using default...")
+            if not os.path.exists(tmp_dir):
+                os.mkdir(tmp_dir)
+            save_dir = tmp_dir
+        duration = self.conf["pi"]["video_save_dur"]
+        logging.debug("Saving to %s" % save_dir)
+
         annotation = Anno_modes.date.value + Anno_modes.time.value + Anno_modes.black_bg.value
         if self.show_stats:
             annotation += Anno_modes.custom_text.value
@@ -112,17 +115,18 @@ class video_streamer:
         bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
         ! capsfilter caps={self.caps} name=caps \
         ! h264parse \
+        ! tee name=filesave \
         ! queue name=pay0 \
         ! rtsp. \
         '
 
-            # ! textoverlay text="Reverse Camera: Disabled" valignment=top halignment=centre font-desc="Sans, 11" \
+        # ! textoverlay text="Reverse Camera: Disabled" valignment=top halignment=centre font-desc="Sans, 11" \
         if self.second_cam:
             cam_src = f"v4l2src device={rev_cam_dir}"
         else:
             cam_src = 'videotestsrc is-live=True pattern=black num-buffers=1 \
             ! omxh264enc'
-        
+
         rev_cam = f'\
         {cam_src} \
         ! {rev_cam_params} \
@@ -135,7 +139,14 @@ class video_streamer:
         location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec} \
         '
 
-        desc = primary_cam + rtsp_client + rev_cam
+        filesink = f'\
+        filesave. \
+        ! queue \
+        ! multifilesink location={save_dir}/robot_video%02d.mov \
+            max-file-duration={duration}\
+        '
+
+        desc = primary_cam + rtsp_client + rev_cam + filesink
 
         return desc
 
@@ -309,7 +320,7 @@ class video_streamer:
         if self.ctrl_q is not None:
             while not self.ctrl_q.empty():
                 command = self.ctrl_q.get(False)
-                loggingl.debug(f"Command received: {command}")
+                logging.debug(f"Command received: {command}")
                 self.parse_commands(command)
         else:
             logging.warning("No control queue set")

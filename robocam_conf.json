@@ -36,6 +36,9 @@
     "RESTART_PI" : "b_8",
     "INC_FPS" : "h_up",
     "DEC_FPS" : "h_down",
-    "TOGGLE_SEC_CAM": "b_0"
+    "INC_RATE" : "h_right",
+    "DEC_RATE" : "h_left",
+    "TOGGLE_SEC_CAM": "b_0",
+    "TOGGLE_LOW_BITRATE": "b_1"
   }
 }

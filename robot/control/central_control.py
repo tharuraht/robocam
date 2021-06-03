@@ -47,13 +47,25 @@ class Central_Control():
                 
                 if joymap[comm["RESTART_STREAM"]]:
                     self.streamer_q.put("[PIPE_RESTART]")
+                
+                if joymap[comm["TOGGLE_LOW_BITRATE"]]:
+                    self.streamer_q.put("[TOGGLE_LOW_BITRATE]")
 
+                # Control FPS
                 if joymap[comm["INC_FPS"]]:
                     print("Increasing FPS")
                     self.streamer_q.put("[INC_FPS]")
                 elif joymap[comm["DEC_FPS"]]:
                     print("Decreasing FPS")
                     self.streamer_q.put("[DEC_FPS]")
+                
+                # Control Bitrate
+                if joymap[comm["INC_RATE"]]:
+                    print("Increasing Bitrate")
+                    self.streamer_q.put("[INC_RATE]")
+                elif joymap[comm["DEC_RATE"]]:
+                    print("Decreasing Bitrate")
+                    self.streamer_q.put("[DEC_RATE]")
 
                 # Toggle stats
                 if joymap[comm["TOGGLE_STATS"]]:

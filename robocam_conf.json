@@ -39,6 +39,7 @@
     "INC_RATE" : "h_right",
     "DEC_RATE" : "h_left",
     "TOGGLE_SEC_CAM": "b_0",
-    "TOGGLE_LOW_BITRATE": "b_1"
+    "TOGGLE_LOW_BITRATE": "b_1",
+    "REWIND" : "b_3"
   }
 }

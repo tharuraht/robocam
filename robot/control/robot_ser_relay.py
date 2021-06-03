@@ -21,6 +21,11 @@ class Serial_Relay():
     udp_port = 0
     conf = None
     ser = None
+    prev_time = 0
+    prev_move = (0,0)
+
+    movement_history = []
+    max_history = 1000
 
     def __init__(self, conf):
         self.conf = conf
@@ -69,7 +74,39 @@ class Serial_Relay():
         if self.device_found:
             logging.debug(f"Writing {msg} to serial port...")
             self.ser.write(msg.encode('utf-8'))
+    
+    def rewind(self):
+        """
+        Uses movement history to sent previous commands
+        """
+        print(len(self.movement_history))
+        if len(self.movement_history) > 0:
+            x, y, duration = self.movement_history.pop()
+            print("Rewinding...",x,y,duration)
+            self.write_dev("{:.0f},{:.0f}".format(-x,-y))
+            time.sleep(duration)
+        else:
+            self.write_dev("{:.0f},{:.0f}".format(0,0))
+    
+    def save_history(self,x,y):
+        cur_time = time.time()
+        if (abs(x)+abs(y) > 1) or 
+            (abs(self.prev_move[0]) + abs(self.prev_move[1]) > 1):
 
+            if self.prev_time == 0:
+                self.prev_time = cur_time
+
+            duration = cur_time - self.prev_time
+            print("DURATION:",duration)
+
+            if len(self.movement_history) >= self.max_history:
+                    self.movement_history.pop(0)
+            self.movement_history.append((x, y, duration))
+            self.prev_time = cur_time
+            self.prev_move = (x,y)
+        else:
+            self.prev_time = 0
+    
 
     def run(self):
         """

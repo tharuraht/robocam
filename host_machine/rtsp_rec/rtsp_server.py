@@ -86,7 +86,7 @@ class RTSP_Server:
         
         filesink = f'\
         filesave. \
-        ! queue \
+        ! queue leaky=2 \
         ! multifilesink location={save_dir}/host_video%02d.mov \
             max-file-duration={duration}\
         '
@@ -97,7 +97,7 @@ class RTSP_Server:
         ! videoconvert \
         ! autovideosink sync=false\
         '
-        pipeline = primary_cam + filesink + secondary_cam
+        pipeline = primary_cam + secondary_cam + filesink
         return pipeline
     
 
@@ -115,6 +115,7 @@ class RTSP_Server:
             
             # twcc_stats = source.get_property("twcc-stats")
             # print("TWCC stats:",twcc_stats)
+
 
     def media_prepared_cb(self, media):
         n_streams = media.n_streams()
@@ -179,6 +180,7 @@ class RTSP_Server:
     def parse_commands(self, command):
         pass
 
+
     def get_commands(self):
         if self.ctrl_q is not None:
             # print("Parsing commands from queue")
@@ -189,6 +191,7 @@ class RTSP_Server:
         else:
             logging.warning("No control queue set")
         return True
+
 
     def launch(self):
         self.create_server()

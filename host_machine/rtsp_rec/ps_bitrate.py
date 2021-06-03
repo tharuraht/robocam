@@ -7,6 +7,8 @@ import socket
 import os
 import logging
 import select
+from datetime import datetime
+import statistics
 
 def rms(bitrates):
   sum_squared = sum(map(lambda x:x*x,bitrates))
@@ -71,6 +73,7 @@ class PS_Bitrate:
         self.conf = conf
         logging.basicConfig(format=conf['log_format'], \
         level=logging.getLevelName(conf['log_level']))
+        open('rec_bitrate.csv', 'w').close() # Clear file
 
 
     def measure(self):
@@ -81,7 +84,13 @@ class PS_Bitrate:
         end_count =  psutil.net_io_counters(pernic=True)[intf].bytes_recv
         if (end_count - start_count) > 0 and len(self.cached_rates) < 1000:
             rate = int(8*((end_count - start_count)/self.period))
-            self.cached_rates.append(rate)
+            if len(self.cached_rates) == 0 or rate < 2 * statistics.median(self.cached_rates):
+                self.cached_rates.append(rate)
+                # cur_time = datetime.now()
+                with open("rec_bitrate.csv", "a") as f:
+                    f.write(f"{rate}\n")
+            else:
+                pass
 
 
     def analyse(self, bitrates):

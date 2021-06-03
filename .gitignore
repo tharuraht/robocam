@@ -42,3 +42,4 @@ robocam_rec
 
 host_machine/video_store/*
 rec_latency.csv
+rec_bitrate.csv

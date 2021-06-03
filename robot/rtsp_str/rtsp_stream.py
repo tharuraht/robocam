@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-# #SERVER=4grobo.zapto.org
-# SERVER=10.200.200.1
-
-# gst-launch-1.0 rpicamsrc annotation-mode=time preview=false vflip=true bitrate=100000 keyframe-interval=-1 ! \
-# 	video/x-h264, framerate=25/1, height=720, width=1280 ! h264parse ! \
-# 	rtspclientsink debug=true protocls=udp-mcast+udp location=rtsp://$SERVER:5000/test latency=0 ulpfec-percentage=10
-
 # http://lifestyletransfer.com/how-to-launch-gstreamer-pipeline-in-python/
 
 import sys
@@ -19,6 +12,8 @@ import logging
 from enum import Enum
 import time
 from pijuice import PiJuice
+import time
+from gpiozero import CPUTemperature
 
 
 Gst.init(None)
@@ -83,8 +78,7 @@ class video_streamer:
     rec_bitrate = rec_jitter = -1
     show_stats = True
     second_cam = False
-    # Controls whether to show timestamp overlay for latency calculation
-    timestampoverlay = False
+    low_bitrate = False
 
 
     def __init__(self, conf, ctrl_streamer_q = None):
@@ -100,29 +94,40 @@ class video_streamer:
         rev_cam_params = self.conf['pi']['rev_cam_params']
         rev_cam_dir = self.conf['pi']['rev_cam_dir']
 
-        
+        save_dir = self.conf["pi"]["video_dir"]
+        tmp_dir = '/tmp/robocam_video/'
+        # if not os.path.exists(save_dir):
+        if True:
+            logging.warning("Save directory doesn't exist, using default...")
+            if not os.path.exists(tmp_dir):
+                os.mkdir(tmp_dir)
+            save_dir = tmp_dir
+        duration = self.conf["pi"]["video_save_dur"]
+        logging.debug("Saving to %s" % save_dir)
+
         annotation = Anno_modes.date.value + Anno_modes.time.value + Anno_modes.black_bg.value
         if self.show_stats:
             annotation += Anno_modes.custom_text.value
 
-        overlay = "! timestampoverlay" if self.timestampoverlay else ""
+        bitrate = 3000000 if self.low_bitrate else self.bitrate
+        num_buff = 3 if self.low_bitrate else -1
 
         primary_cam = f'\
-        rpicamsrc preview=false rotation=180 annotation-mode={annotation} name=src \
-        bitrate={self.bitrate} annotation-text=\"Bitrate {self.bitrate} \" \
+        rpicamsrc preview=false rotation=180 annotation-mode={annotation} name=src num-buffers={num_buff}\
+        bitrate={bitrate} annotation-text=\"Bitrate {bitrate} \" \
         ! capsfilter caps={self.caps} name=caps \
         ! h264parse \
+        ! tee name=filesave \
         ! queue name=pay0 \
         ! rtsp. \
         '
 
-            # ! textoverlay text="Reverse Camera: Disabled" valignment=top halignment=centre font-desc="Sans, 11" \
         if self.second_cam:
             cam_src = f"v4l2src device={rev_cam_dir}"
         else:
             cam_src = 'videotestsrc is-live=True pattern=black num-buffers=1 \
             ! omxh264enc'
-        
+
         rev_cam = f'\
         {cam_src} \
         ! {rev_cam_params} \
@@ -135,7 +140,14 @@ class video_streamer:
         location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec} \
         '
 
-        desc = primary_cam + rtsp_client + rev_cam
+        filesink = f'\
+        filesave. \
+        ! queue leaky=2\
+        ! multifilesink location={save_dir}/robot_video%02d.mov \
+            max-file-duration={duration}\
+        '
+
+        desc = primary_cam + rtsp_client + rev_cam + filesink
 
         return desc
 
@@ -143,7 +155,11 @@ class video_streamer:
     def bus_call(self, bus, msg, *args):
         if msg.type == Gst.MessageType.EOS:
             logging.info("End-of-stream")
-            self.loop.quit()
+            if not self.low_bitrate:
+                self.loop.quit()
+            else:
+                time.sleep(3)
+                self.restart()
             return
         elif msg.type == Gst.MessageType.ERROR:
             logging.error(f"GST ERROR {msg.parse_error()}")
@@ -227,8 +243,8 @@ class video_streamer:
                 self.params.change_params(temporal=0, spatial=-1)
             elif rms_state == 0: # increasing rms
                 self.params.change_params(temporal=0, spatial=1)
-            elif int(self.rec_bitrate) > self.bitrate: #TODO trying it out
-                self.params.change_params(temporal=0, spatial=1)
+            # elif int(self.rec_bitrate) > self.bitrate: #TODO trying it out
+            #     self.params.change_params(temporal=0, spatial=1)
         
         return
     
@@ -240,12 +256,13 @@ class video_streamer:
         charge_stat = self.pijuice.status.GetStatus()['data']['powerInput']
 
         rev_cam_status = "On" if self.second_cam else "Off"
+        cpu_temp = CPUTemperature().temperature
 
         annotation = ("Sender Bitrate %d Framerate %d  Receiver Bitrate %s \
-        Jitter %s Rev Camera: %s \nBattery: %0d%% External Power: %s   " %
-            (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter, rev_cam_status, bat_lvl, charge_stat))
-
-
+        Jitter %s Rev Camera: %s \nBattery: %0d%% External Power: %s CPU Temp: %s   " %
+            (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter,
+             rev_cam_status, bat_lvl, charge_stat, cpu_temp))
+        
         videosrc.set_property("annotation-text", annotation)
         return True
 
@@ -297,11 +314,23 @@ class video_streamer:
             framerate = self.params.get_temporal_res()
             self.update_framerate(framerate)
             self.restart()
+        elif command == "[INC_RATE]":
+            self.params.change_params(spatial=1)
+            self.set_bitrate()
+            self.update_annotation()
+        elif command == "[DEC_RATE]":
+            self.params.change_params(spatial=-1)
+            self.set_bitrate()
+            self.update_annotation()
         elif command == "[PIPE_RESTART]":
             self.restart()
         elif command == "[TOGGLE_SEC_CAM]":
             self.second_cam = not self.second_cam
             logging.info("Toggling second camera to %s" % self.second_cam)
+            self.restart()
+        elif command == "[TOGGLE_LOW_BITRATE]":
+            self.low_bitrate = not self.low_bitrate
+            logging.info("Toggling low-bitrate mode to %s" % self.low_bitrate)
             self.restart()
 
 
@@ -309,7 +338,7 @@ class video_streamer:
         if self.ctrl_q is not None:
             while not self.ctrl_q.empty():
                 command = self.ctrl_q.get(False)
-                loggingl.debug(f"Command received: {command}")
+                logging.debug(f"Command received: {command}")
                 self.parse_commands(command)
         else:
             logging.warning("No control queue set")

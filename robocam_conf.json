@@ -24,7 +24,8 @@
     "starting_bitrate": 200000,
     "fec_percentage": 5,
     "gst_path": "/home/pi/Downloads/gst-build/gst-env.py",
-    "video_dir": "/media/usb/robocam_videos"
+    "video_dir": "/media/usb/robocam_videos",
+    "video_save_dur": 20000000000
   },
   "log_level" : "DEBUG",
   "log_format" : "%(asctime)s:%(filename)s:%(levelname)s:%(message)s",
@@ -35,6 +36,9 @@
     "RESTART_PI" : "b_8",
     "INC_FPS" : "h_up",
     "DEC_FPS" : "h_down",
-    "TOGGLE_SEC_CAM": "b_0"
+    "INC_RATE" : "h_right",
+    "DEC_RATE" : "h_left",
+    "TOGGLE_SEC_CAM": "b_0",
+    "TOGGLE_LOW_BITRATE": "b_1"
   }
 }

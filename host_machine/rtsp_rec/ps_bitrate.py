@@ -85,6 +85,9 @@ class PS_Bitrate:
 
 
     def analyse(self, bitrates):
+        if len(bitrates) == 0:
+            logging.warning("Empty bitrate list!")
+            return Observation.gamma
         start = bitrates[0]
         median = bitrates[int(len(bitrates)/2)]
         end = bitrates[-1]
@@ -106,8 +109,11 @@ class PS_Bitrate:
 
     def find_rms(self, bitrates):
         total_rms = rms(bitrates)
+        if len(bitrates) < 3:
+            return 2
 
         logging.debug("Total rms %0d" % total_rms)
+
 
         # Split into 3 parts and find each rms
         rms1, rms2, rms3 = [rms(part) for part in split(bitrates, 3)]
@@ -126,7 +132,7 @@ class PS_Bitrate:
 
 
     def get_status(self):
-        # Fetch and clear cahced bitrates
+        # Fetch and clear cached bitrates
         bitrates = self.cached_rates
         self.cached_rates = []
 

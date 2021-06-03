@@ -9,7 +9,7 @@
     "gst_path": "/home/tharu/Downloads/gst-build/gst-env.py",
     "video_dir": "/home/tharu/Documents/robocam/host_machine/video_store",
     "video_save_dur": 20000000000,
-    "open_upnp" : true,
+    "open_upnp" : false,
     "rec_latency": false
   },
   "pi":

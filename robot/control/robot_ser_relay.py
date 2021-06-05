@@ -90,7 +90,7 @@ class Serial_Relay():
     
     def save_history(self,x,y):
         cur_time = time.time()
-        if (abs(x)+abs(y) > 1) or 
+        if (abs(x)+abs(y) > 1) or \
             (abs(self.prev_move[0]) + abs(self.prev_move[1]) > 1):
 
             if self.prev_time == 0:

@@ -11,5 +11,11 @@
 
 ## Libraries
 
+The following libraries are all Python3 compatible libraries, and can be installed via pip3 install <name>
 - pygame
 - psutil
+- ipstack
+
+## Setup
+
+Requires a ipstack API key. These a free to obtain via signup

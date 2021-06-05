@@ -2,7 +2,7 @@
 
 export ROBOCAM_DIR=`realpath .`
 export GST_PLUGIN_PATH="/home/pi/Documents/latency-clock"
-GST_PATH=/home/pi/Downloads/gst-build/gst-env.py
+GST_PATH=`python3 utils/parse_json.py pi "gst_path"`
 # export GST_DEBUG=timestampoverlay:5,timeoverlayparse:5
 # export GST_DEBUG=4
 

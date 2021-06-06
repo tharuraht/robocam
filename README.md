@@ -95,4 +95,5 @@ The location estimation feature of the system uses [ipstack geolocation API](htt
 Each node has a central run command:
 - Host Machine: `host_setup.sh`
 - RPi: `pi_setup.sh`
+
 Simply run these commands manually, or configure the OS to run them automatically on startup (e.g. via crontab)

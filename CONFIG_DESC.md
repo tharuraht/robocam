@@ -1,6 +1,6 @@
 # Configuration Description
 
-This document summarises the configuration options available in the [`robocam_conf.json`](robocam.json) configuration file.
+This document summarises the configuration options available in the [`robocam_conf.json`](robocam_conf.json) configuration file.
 
 ## Host
 

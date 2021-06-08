@@ -9,8 +9,7 @@
     "gst_path": "/home/tharu/Downloads/gst-build/gst-env.py",
     "video_dir": "/home/tharu/Documents/robocam/host_machine/video_store",
     "video_save_dur": 20000000000,
-    "open_upnp" : false,
-    "rec_latency": false
+    "open_upnp" : false
   },
   "pi":
   {
@@ -18,7 +17,6 @@
     "control_port": 5005,
     "comms_port" : 5001,
     "stream_params" : "video/x-h264,framerate=25/1,width=1600,height=900,profile=baseline",
-    "raw_stream_params" : "video/x-raw,framerate=25/1,width=1600,height=900",
     "rev_cam_params" : "video/x-h264,width=640,height=480",
     "rev_cam_dir" : "/dev/v4l/by-id/usb-HD_Web_Camera_HD_Web_Camera_Ucamera001-video-index0",
     "starting_bitrate": 200000,

@@ -31,6 +31,10 @@ Refer to the README files included in each folder for a breakdown of each file.
 
 For setup instructions and a list of pre-requisites refer to [SETUP.md](SETUP.md).
 
+## Configuration
+
+The system can be configured in various ways via the [`robocam_conf.json`](robocam.json) file, with descriptions given in [`CONFIG_DESC.md`](CONFIG_DESC.md).
+
 ## Starting the System
 
 Each node has a central run command:

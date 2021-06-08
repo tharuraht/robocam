@@ -85,6 +85,7 @@ The Wireguard VPN tunnel between the two nodes is based on the instructions list
     - Server (host machine) address: 10.200.200.1
     - Client (RPi) address: 10.200.200.2
 
+Note: the Wireguard server will listen on port 51820 for clinet connections. This can be changed in [`wg0-client.conf`](utils/wireguard/wg0-client.conf), but the port needs forwarding to make the server reachable from the internet. 
 
 ### Wireguard watchdog
 

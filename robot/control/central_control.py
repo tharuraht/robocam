@@ -12,6 +12,7 @@ class Central_Control():
     relay = None
     sock = None
     streamer_q = None # Queue to send data to streamer
+    rewind_mode = False
 
     def __init__(self, conf, ctrl_streamer_q = None):
         self.conf = conf
@@ -30,14 +31,27 @@ class Central_Control():
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # self.sock.setblocking(0) # Make socket non-blocking
         self.sock.bind((UDP_IP, UDP_PORT))
+        self.sock.settimeout(0.01)
 
         print(f"Ready to receive at {UDP_IP}:{UDP_PORT}")
 
+
     def parse_map(self, joymap):
         comm = self.conf["controller_config"]
+
         if {"x", "y"} <= joymap.keys():
+            self.rewind_mode = False
             # Movement controls, send to relay
             self.relay.write_dev("{:.0f},{:.0f}".format(joymap['x'],joymap['y']))
+            # Save to history as tuple
+            self.relay.save_history(joymap['x'],joymap['y'])
+        
+        if joymap[comm["REWIND"]]:
+            print("Rewinding")
+            self.rewind_mode = True
+            self.relay.rewind()
+        elif not joymap[comm["REWIND"]]:
+            self.rewind_mode = False
 
         if self.streamer_q is not None:
             try:
@@ -83,14 +97,18 @@ class Central_Control():
     def control_loop(self):
         prevmap = defaultdict(bool)
         while True:
-            data = self.sock.recv(1024) # buffer size is 1024 bytes TODO check if big enough
-            # print("Data received: %s" % data)
+            try:
+                data = self.sock.recv(1024) # buffer size is 1024 bytes TODO check if big enough
+                # print("Data received: %s" % data)
+                joymap = json.loads(data.decode())
 
-            joymap = json.loads(data.decode())
+                if joymap != prevmap:
+                    print(joymap)
+                    self.parse_map(joymap)
+            except socket.timeout:
+                if self.rewind_mode == True:
+                    self.relay.rewind()
 
-            if joymap != prevmap:
-                print(joymap)
-                self.parse_map(joymap)
 
 if __name__ == "__main__":
     source_path = Path(__file__).resolve()

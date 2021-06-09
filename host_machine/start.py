@@ -8,6 +8,7 @@ import os
 import time
 import subprocess
 import shutil
+import logging
 
 def open_upnp():
     prev_res = ""
@@ -40,6 +41,12 @@ def main():
         conf = json.load(f)
 
     open(conf['log_path'], 'w').close() # Clear log file
+    logging.basicConfig(filename=conf['log_path'], filemode='a',
+    format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
+    logging.getLogger().addHandler(logging.StreamHandler())
+
+    logging.info("Starting robocam system on Host Machine...")
+    logging.info("Log directory: %s" % conf['log_path'])
 
     ctrl_rec_q = Queue() # Queue from ctrl to rec
 

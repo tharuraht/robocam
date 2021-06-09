@@ -13,7 +13,6 @@ from enum import Enum
 import time
 from pijuice import PiJuice
 import time
-from gpiozero import CPUTemperature
 
 
 Gst.init(None)
@@ -136,7 +135,7 @@ class video_streamer:
         '
 
         rtsp_client = f'\
-        rtspclientsink debug=false protocols=udp-mcast+udp name=rtsp \
+        rtspclientsink debug=true protocols=udp-mcast+udp name=rtsp \
         location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec} \
         '
 
@@ -256,12 +255,11 @@ class video_streamer:
         charge_stat = self.pijuice.status.GetStatus()['data']['powerInput']
 
         rev_cam_status = "On" if self.second_cam else "Off"
-        cpu_temp = CPUTemperature().temperature
 
         annotation = ("Sender Bitrate %d Framerate %d  Receiver Bitrate %s \
-        Jitter %s Rev Camera: %s \nBattery: %0d%% External Power: %s CPU Temp: %s   " %
+        Jitter %s Rev Camera: %s \nBattery: %0d%% External Power: %s   " %
             (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter,
-             rev_cam_status, bat_lvl, charge_stat, cpu_temp))
+             rev_cam_status, bat_lvl, charge_stat))
         
         videosrc.set_property("annotation-text", annotation)
         return True
@@ -378,8 +376,9 @@ if __name__ == "__main__":
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
     
-    logging.basicConfig(format=self.conf['log_format'], \
-        level=logging.getLevelName(conf['log_level']))
+    logging.basicConfig(filename=conf['log_path'], filemode='a',
+    format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
+    logging.getLogger().addHandler(logging.StreamHandler())
 
     streamer = video_streamer(conf)
     streamer.launch()

@@ -26,7 +26,7 @@
     "video_save_dur": 20000000000
   },
   "log_level" : "DEBUG",
-  "log_path" : "/home/tharu/Documents/robocam/sys_log.log",
+  "log_path" : "/var/tmp/robocam.log",
   "log_format" : "%(asctime)s:%(filename)s:%(levelname)s:%(message)s",
   "controller_config":
   {

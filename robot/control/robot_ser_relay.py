@@ -30,8 +30,9 @@ class Serial_Relay():
     def __init__(self, conf):
         self.conf = conf
         # Configure Logger
-        logging.basicConfig(format='%(asctime)s:%(filename)s:%(levelname)s:%(message)s', \
-        level=logging.getLevelName(conf['log_level']))
+        logging.basicConfig(filename=conf['log_path'], filemode='a',
+        format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
+        logging.getLogger().addHandler(logging.StreamHandler())
         
         # Check for arduino port
         self.find_device()

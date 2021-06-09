@@ -73,7 +73,7 @@ class PS_Bitrate:
         self.conf = conf
         logging.basicConfig(filename=conf['log_path'], filemode='a',
         format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
-        logging.getLogger().addHandler(logging.StreamHandler())
+        # logging.getLogger().addHandler(logging.StreamHandler())
         open('rec_bitrate.csv', 'w').close() # Clear file
 
 

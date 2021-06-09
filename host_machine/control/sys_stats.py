@@ -33,7 +33,10 @@ class Sys_Stats():
     ]
 
     pi_log = [
-        [sg.Text("RPi Log")],
+        [
+            sg.Text("RPi Log"),
+            sg.Button("Refresh")
+        ],
         [sg.Listbox(values=[], enable_events=True, size=(100,50), key="-RPI LOG-")]
     ]
 
@@ -51,6 +54,8 @@ class Sys_Stats():
 
     def __init__(self, conf):
         self.conf = conf
+        logging.basicConfig(filename=conf['log_path'], filemode='a',
+        format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
     
     def __del__(self):
         self.window.close()
@@ -69,29 +74,33 @@ class Sys_Stats():
         pass
 
     
-    def rpi_status_update(self):
+    def rpi_status_update(self, log = False):
         addr = self.conf['pi']['vpn_addr']
-        # port = self.conf['pi']['comms_port']
-        port = 5010
-        buff_sz = 500
+        port = self.conf['pi']['comms_port']
+        buff_sz = 5000
         status = []
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
+        sock.settimeout(2)
         connection = "Disconnected"
+        msg = "[LOG]" if log else "[NO_LOG]"
+        rec_msg = ""
+        pi_log = []
 
         try:
             sock.connect((addr,port))
+            sock.sendall(msg.encode())
             while True:
                 data = sock.recv(buff_sz)
                 if data:
-                    msg = data.decode('utf-8')
+                    rec_msg += data.decode('utf-8')
                     # print(msg)
-                    msg_dict = json.loads(msg)
-                    status = pretty_string(msg_dict)
-                    connection = "Connected"
                 else:
                     break
+            msg_dict = json.loads(rec_msg)
+            pi_log = msg_dict.pop('pi_log')
+            status = pretty_string(msg_dict)
+            connection = "Connected"
         except socket.timeout:
             connection = "Timeout"
         except socket.error as e:
@@ -105,8 +114,11 @@ class Sys_Stats():
         
         if len(status) > 0:
             self.window["-STAT LIST-"].update(status)
-        self.window['-RPI STATUS-'].update("Connection Status: %s" % connection)
 
+        if len(pi_log) > 0:
+            self.window['-RPI LOG-'].update(pi_log)
+
+        self.window['-RPI STATUS-'].update("Connection Status: %s" % connection)
 
     def event_loop(self):
         while True:
@@ -118,14 +130,14 @@ class Sys_Stats():
                 break
             if event is None or event == "Exit":
                 break
+            if event is not None:
+                logging.debug("GUI Event: %s" % event)
 
             # Update host machine log
             self.host_log_update()
 
             # Update rpi status
-            self.rpi_status_update()
-
-            self.rpi_log_update()
+            self.rpi_status_update(event == "Refresh")
 
         self.window.close()
 

@@ -11,7 +11,7 @@ with open("robocam_conf.json") as f:
   conf = json.load(f)
 logging.basicConfig(filename=conf['log_path'], filemode='a',
 format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
-logging.getLogger().addHandler(logging.StreamHandler())
+# logging.getLogger().addHandler(logging.StreamHandler())
 
 def log_ports(ports):
   # Log the open ports

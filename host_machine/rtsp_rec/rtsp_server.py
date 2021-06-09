@@ -37,7 +37,7 @@ class RTSP_Factory(GstRtspServer.RTSPMediaFactory):
 class RTSP_Server:
     port = "5000"
     mount_point = "/test"
-    latency = 100
+    latency = 100 # Buffering latency
     conf = None
     factory = None
     server =  None
@@ -48,7 +48,7 @@ class RTSP_Server:
         self.ctrl_q = ctrl_rec_q
         logging.basicConfig(filename=conf['log_path'], filemode='a',
         format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
-        logging.getLogger().addHandler(logging.StreamHandler())
+        # logging.getLogger().addHandler(logging.StreamHandler())
 
   # def probe_callback(self,pad,info): 
   #     dts = info.get_buffer().dts

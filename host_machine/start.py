@@ -32,10 +32,14 @@ def main():
     if os.path.exists('tmp'):
         shutil.rmtree('tmp')
     os.mkdir('tmp')
+
+
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
     with open(os.path.join(dir_path,'..','robocam_conf.json')) as f:
         conf = json.load(f)
+
+    open(conf['log_path'], 'w').close() # Clear log file
 
     ctrl_rec_q = Queue() # Queue from ctrl to rec
 

@@ -197,15 +197,15 @@ class video_streamer:
                 data = s.recv(buff_sz)
                 if data:
                     msg = data.decode('utf-8')
-                    dict = json.loads(msg)
-                    logging.debug(f"Received message: {dict}")
+                    msg_dict = json.loads(msg)
+                    logging.debug(f"Received message: {msg_dict}")
                     t = time.localtime()
                     current_time = time.strftime("%H:%M:%S", t)
-                    if 'BITRATE_STATE' in dict:
-                        logging.debug(f"Timestamps - message:{dict['BITRATE_STATE']['TIMESTAMP']}, current:{current_time}")
-                        status, rms_state = dict['BITRATE_STATE']['PARAMS']
-                    if 'RTCP_STATS' in dict:
-                        self.rec_bitrate, self.rec_jitter = dict['RTCP_STATS']['PARAMS']
+                    if 'BITRATE_STATE' in msg_dict:
+                        logging.debug(f"Timestamps - message:{msg_dict['BITRATE_STATE']['TIMESTAMP']}, current:{current_time}")
+                        status, rms_state = msg_dict['BITRATE_STATE']['PARAMS']
+                    if 'RTCP_STATS' in msg_dict:
+                        self.rec_bitrate, self.rec_jitter = msg_dict['RTCP_STATS']['PARAMS']
                 else:
                     break
         except socket.timeout:

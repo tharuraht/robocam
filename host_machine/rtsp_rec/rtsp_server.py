@@ -46,9 +46,10 @@ class RTSP_Server:
     def __init__(self,conf, ctrl_rec_q = None):
         self.conf = conf
         self.ctrl_q = ctrl_rec_q
-        logging.basicConfig(format=conf['log_format'], \
-            level=logging.getLevelName(conf['log_level']))
-  
+        logging.basicConfig(filename=conf['log_path'], filemode='a',
+        format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
+        logging.getLogger().addHandler(logging.StreamHandler())
+
   # def probe_callback(self,pad,info): 
   #     dts = info.get_buffer().dts
   #     pts = info.get_buffer().pts

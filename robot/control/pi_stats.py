@@ -17,8 +17,7 @@ class Pi_Stats():
         self.pijuice = PiJuice(1, 0x14) # Instantiate PiJuice interface object
 
     def main_loop(self):
-        # port = self.conf['pi']['comms_port']
-        port = 5010
+        port = self.conf['pi']['comms_port']
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(('',port))
@@ -31,8 +30,9 @@ class Pi_Stats():
                 # print("Waiting")
                 conn, addr = s.accept()
                 print("Connected")
+                data = conn.recv(16)
                 if addr[0] == self.conf['host']['vpn_addr']:
-                    info_dict = self.generate_info()
+                    info_dict = self.generate_info(data.decode('utf-8'))
                     dump = json.dumps(info_dict)
                     print(dump)
                     conn.sendall(dump.encode())
@@ -44,7 +44,7 @@ class Pi_Stats():
 
 
 
-    def generate_info(self):
+    def generate_info(self, req):
         info = {}
 
         lookup = self.ip_lookup()
@@ -67,7 +67,15 @@ class Pi_Stats():
             'battery_lvl' : bat_lvl,
             'charge_status' : charge_stat
         }
-    
+
+        info['pi_log'] = []
+        if req == "[LOG]":
+            with open(self.conf['log_path'], 'r') as f:
+                lines = f.readlines()
+                lines = lines[-50:]
+                lines = [line.strip() for line in lines]
+                info['pi_log'] = lines
+
         return info
 
     

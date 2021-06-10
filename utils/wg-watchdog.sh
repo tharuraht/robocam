@@ -15,7 +15,3 @@ do
 done
 echo "restarting wg"
 sudo systemctl restart wg-quick@wg0-client
-# logger -n winterfell -i -t "wg-watchdog" -p user.notice "wireguard restarted"
-
-#crontab entry
-#*/15 * * * * /home/mkasun/bin/wg-watchdog.sh

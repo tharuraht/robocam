@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# Relay program, waits for incoming commands from host machine and forwards to
-# robot plaftform via USB serial connection
 # Based on work from Dr. Adria Junyent-Ferré
 # https://hackaday.io/project/170624-wi-fi-controlled-car-turtle-bot-with-fpv
 
@@ -16,14 +14,16 @@ import subprocess
 
 
 class Serial_Relay():
+    """
+    Connects to Arduino and relays movement commands
+    """
     device_found = False
-    dev_port = 0
-    udp_port = 0
     conf = None
     ser = None
+
+    # Rewind variables
     prev_time = 0
     prev_move = (0,0)
-
     movement_history = []
     max_history = 1000
 
@@ -33,38 +33,32 @@ class Serial_Relay():
         logging.basicConfig(filename=conf['log_path'], filemode='a',
         format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
         logging.getLogger().addHandler(logging.StreamHandler())
-        
-        # Check for arduino port
-        self.find_device()
-        if self.device_found:
-            self.ser = self.connect_serial()
-            print(f"Arduino connected at port {self.dev_port}")
-        
 
-        self.udp_port = self.conf['pi']['control_port']
-    
+        self.setup_device()
+
+
     def __del__(self):
         if self.ser is not None:
             self.ser.close()
             time.sleep(1)
-    
 
-    def find_device(self):
+
+    def setup_device(self):
+        # Find Arduino
         p=subprocess.run(["ls /dev/ttyUSB*"], shell=True, stdout=subprocess.PIPE, universal_newlines=True)
         if p.returncode == 0:
             self.device_found = True
-            print(p.stdout)
-            self.dev_port = p.stdout.strip()
+            logging.debug(p.stdout)
+            dev_port = p.stdout.strip()
 
-    def connect_serial(self):
-        try:
             #Connect to Arduino serial port
-            logging.debug(f"Connecting to serial port {self.dev_port}")
-            ser = serial.Serial(self.dev_port, 9800, timeout=1)
-        except Exception as e:
-            logging.exception(e)
-            exit(1)
-        return ser
+            try:
+                logging.debug(f"Connecting to serial port {dev_port}")
+                self.ser = serial.Serial(dev_port, 9800, timeout=1)
+            except Exception as e:
+                logging.exception(e)
+                exit(1)
+            logging.info(f"Arduino connected at port {dev_port}")
 
 
     def write_dev(self, msg):
@@ -75,20 +69,21 @@ class Serial_Relay():
         if self.device_found:
             logging.debug(f"Writing {msg} to serial port...")
             self.ser.write(msg.encode('utf-8'))
-    
+
     def rewind(self):
         """
         Uses movement history to sent previous commands
         """
-        print(len(self.movement_history))
+        logging.debug(len(self.movement_history))
         if len(self.movement_history) > 0:
             x, y, duration = self.movement_history.pop()
-            print("Rewinding...",x,y,duration)
+            logging.debug("Rewinding...",x,y,duration)
             self.write_dev("{:.0f},{:.0f}".format(-x,-y))
             time.sleep(duration)
         else:
             self.write_dev("{:.0f},{:.0f}".format(0,0))
-    
+
+
     def save_history(self,x,y):
         cur_time = time.time()
         if (abs(x)+abs(y) > 1) or \
@@ -98,7 +93,7 @@ class Serial_Relay():
                 self.prev_time = cur_time
 
             duration = cur_time - self.prev_time
-            print("DURATION:",duration)
+            logging.debug("DURATION:",duration)
 
             if len(self.movement_history) >= self.max_history:
                     self.movement_history.pop(0)
@@ -107,7 +102,7 @@ class Serial_Relay():
             self.prev_move = (x,y)
         else:
             self.prev_time = 0
-    
+
 
     def run(self):
         """
@@ -115,12 +110,13 @@ class Serial_Relay():
         to serial port.
         """
 
-        time.sleep(1)
+        # time.sleep(1)
+        udp_port = self.conf['pi']['control_port']
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(0) # Make socket non-blocking
-        sock.bind(("",self.udp_port))
-        logging.info(f"Ready to receive at port {self.udp_port}")
+        sock.bind(("",udp_port))
+        logging.info(f"Ready to receive at port {udp_port}")
 
         timeout = 1 #1 s
         misp="x,x"
@@ -140,6 +136,49 @@ class Serial_Relay():
                 self.write_dev((0,0))
 
 
+class BLE_Relay(Serial_Relay):
+    """
+    Derived from Serial_Relay to use BLE connection to robot
+    """
+    ble_mac_addr = "E1:E4:71:C4:5C:7B" # Set this to your BLE module mac addr
+    handle = None
+
+    def __init__(self,conf):
+        bluepy = __import__('bluepy') # only import if class used
+        super().__init__(conf)
+
+    def __del__(self):
+        if self.ser is not None:
+            self.ser.disconnect()
+            time.sleep(1)
+
+
+    def setup_device(self):
+        try:
+            dev = self.bluepy.btle.Peripheral(self.ble_mac_addr, self.bluepy.btle.ADDR_TYPE_RANDOM)
+        except Exception as e:
+            logging.exception(e)
+            exit(1)
+
+        self.device_found = True
+        time.sleep(1)
+        logging.debug("services: ", dev.getServices())
+        serv=dev.getServiceByUUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
+        characteristics=serv.getCharacteristics()
+
+        self.handle=characteristics[0].getHandle()
+        self.ser = dev
+        logging.info("BLE device connected")
+
+
+    def write_dev(self, msg):
+        """
+        Write to serial port of arduino. Functions only if arduino serial port
+        was discovered and connected.
+        """
+        if self.device_found:
+            logging.debug(f"Writing {msg} to BLE port...")
+            self.ser.writeCharacteristic(self.handle, msg.encode('utf-8'))
 
 
 if __name__ == "__main__":

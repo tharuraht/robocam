@@ -2,12 +2,10 @@ from ipstack import GeoLookup
 from gpiozero import CPUTemperature
 import psutil
 from pijuice import PiJuice
-import time
 import socket
 import json
 
 class Pi_Stats():
-    
     def __init__(self, conf):
         with open("ipstack.key") as f:
             key = f.read()
@@ -21,7 +19,6 @@ class Pi_Stats():
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(('',port))
-        
         s.listen()
         print("Listening on port %0d" % port)
 
@@ -78,7 +75,6 @@ class Pi_Stats():
 
         return info
 
-    
 
     def ip_lookup(self):
         try:
@@ -86,7 +82,6 @@ class Pi_Stats():
 
             if location is None:
                 print("Failed to find location")
-            
             return location
 
 

@@ -1,80 +1,31 @@
 #!/usr/bin/env python3
-# http://lifestyletransfer.com/how-to-launch-gstreamer-pipeline-in-python/
-
 import sys
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import GObject, Gst, GLib
+from gi.repository import Gst, GLib
 import json
 import socket
 import os
 import logging
-from enum import Enum
-import time
 from pijuice import PiJuice
 import time
+from streamer_utils import Video_params, Status, Anno_modes
 
 
 Gst.init(None)
+# Set these options for GStreamer debug to stdout
 # Gst.debug_set_active(True)
 # Gst.debug_set_default_threshold(3)
 
-class Anno_modes(Enum):
-    date = 0x00000004
-    time = 0x00000008
-    custom_text = 0x00000001
-    black_bg = 0x00000400
-
-class Video_params:
-    temporal_res = [15,25,30,40]
-    spatial_res = [100000, 300000, 600000, 1000000, 2000000, 5000000, 7000000, 10000000]
-
-    def __init__(self):
-        self.cur_temp_idx = 2
-        self.cur_spatial_idx = 1
-    
-    def get_temporal_res(self):
-        return self.temporal_res[self.cur_temp_idx]
-
-    def get_spatial_res(self):
-        return self.spatial_res[self.cur_spatial_idx]
-    
-    def change_params(self,temporal=0,spatial=0):
-        """
-        Changes the temporal and/or spatial parameters by increment/decrement
-
-        +1 : increment
-        0  : no change
-        -1 : decrement
-        """
-        if temporal == 1:
-            if self.cur_temp_idx < len(self.temporal_res)-1:
-                self.cur_temp_idx += 1
-        elif temporal == -1:
-            if self.cur_temp_idx > 0:
-                self.cur_temp_idx -= 1
-
-        if spatial == 1:
-            if self.cur_spatial_idx < len(self.spatial_res)-1:
-                self.cur_spatial_idx += 1
-        elif spatial == -1:
-            if self.cur_spatial_idx > 0:
-                self.cur_spatial_idx -= 1
-        return
-        
-class Status(Enum):
-  Stable = 1
-  Fluctuated = 2
-  Degraded = 3
-  Non_Monotonic = 4
-  Progressive = 5
 
 class video_streamer:
     loop = GLib.MainLoop()
     params = Video_params()
     pijuice = PiJuice(1, 0x14) # Instantiate PiJuice interface object
-    ctrl_q = None # Comands send from control
+    ctrl_q = None # Commands sent from control
     rec_bitrate = rec_jitter = -1
+
+    # Toggles
     show_stats = True
     second_cam = False
     low_bitrate = False
@@ -87,6 +38,9 @@ class video_streamer:
         self.ctrl_q = ctrl_streamer_q
 
     def get_pipeline_desc(self):
+        """
+        Sets up and returns pipeline according to current configuration
+        """
         hostip = self.conf['host']['stream_hostname']
         hostport = self.conf['host']['stream_rec_port']
         fec = self.conf['pi']['fec_percentage']
@@ -147,7 +101,6 @@ class video_streamer:
         '
 
         desc = primary_cam + rtsp_client + rev_cam + filesink
-
         return desc
 
 
@@ -169,6 +122,9 @@ class video_streamer:
         return True
 
     def update_framerate(self, rate):
+        """
+        Modifies caps to set new framerate
+        """
         splits = self.caps.split(",")
 
         for i in range (len(splits)):
@@ -215,9 +171,9 @@ class video_streamer:
         except Exception as e:
             logging.Exception("Unhandled Exception! Exiting... ",e)
             exit(1)
-        
         return status, rms_state
-    
+
+
     def parse_status(self):
         status, rms_state = self.get_status()
         logging.debug("Received Status: %s, RMS: %0d" % (status, rms_state))
@@ -244,10 +200,13 @@ class video_streamer:
                 self.params.change_params(temporal=0, spatial=1)
             # elif int(self.rec_bitrate) > self.bitrate: #TODO trying it out
             #     self.params.change_params(temporal=0, spatial=1)
-        
         return
-    
+
+
     def update_annotation(self):
+        """
+        Collects information and update annotation on video stream
+        """
         framerate = self.params.get_temporal_res()
         videosrc = self.pipeline.get_by_name("src")
 
@@ -260,7 +219,7 @@ class video_streamer:
         Jitter %s Rev Camera: %s \nBattery: %0d%% External Power: %s   " %
             (self.bitrate, framerate, self.rec_bitrate, self.rec_jitter,
              rev_cam_status, bat_lvl, charge_stat))
-        
+
         videosrc.set_property("annotation-text", annotation)
         return True
 
@@ -268,9 +227,6 @@ class video_streamer:
         videosrc = self.pipeline.get_by_name("src")
         videocaps = self.pipeline.get_by_name("caps")
         self.parse_status()
-
-        framerate = self.params.get_temporal_res()
-        self.update_framerate(framerate)
 
         self.bitrate = self.params.get_spatial_res()
         # logging.debug(self.caps)
@@ -358,24 +314,23 @@ class video_streamer:
 
         # Functions below are periodically called
         GLib.timeout_add_seconds(5, self.set_bitrate)
+        # Period in ms
         GLib.timeout_add(50, self.get_commands)
         GLib.timeout_add(500, self.update_annotation)
 
-        # run
         self.pipeline.set_state(Gst.State.PLAYING)
         try:
             self.loop.run()
         except Exception as e:
             logging.Exception(e)
         finally:
-            # cleanup
             self.pipeline.set_state(Gst.State.NULL)
 
 
 if __name__ == "__main__":
     with open("robocam_conf.json") as conf_file:
         conf = json.load(conf_file)
-    
+
     logging.basicConfig(filename=conf['log_path'], filemode='a',
     format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
     logging.getLogger().addHandler(logging.StreamHandler())

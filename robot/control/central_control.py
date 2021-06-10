@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import socket
-import time
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -19,10 +18,12 @@ class Central_Control():
         self.relay = robot_ser_relay.Serial_Relay(conf)
         self.setup_socket()
         self.streamer_q = ctrl_streamer_q
-    
+
+
     def  __del__(self):
         if self.sock is not None:
             self.sock.close()
+
 
     def setup_socket(self):
         # Setup receiver socket
@@ -45,7 +46,7 @@ class Central_Control():
             self.relay.write_dev("{:.0f},{:.0f}".format(joymap['x'],joymap['y']))
             # Save to history as tuple
             self.relay.save_history(joymap['x'],joymap['y'])
-        
+
         if joymap[comm["REWIND"]]:
             print("Rewinding")
             self.rewind_mode = True
@@ -57,11 +58,9 @@ class Central_Control():
             try:
                 if joymap[comm["RESTART_PI"]]:
                     print("Restarting Pi")
-                    # TODO shutdown all and restart pi
-                
+                    os.system("sudo reboot")
                 if joymap[comm["RESTART_STREAM"]]:
                     self.streamer_q.put("[PIPE_RESTART]")
-                
                 if joymap[comm["TOGGLE_LOW_BITRATE"]]:
                     self.streamer_q.put("[TOGGLE_LOW_BITRATE]")
 
@@ -72,7 +71,7 @@ class Central_Control():
                 elif joymap[comm["DEC_FPS"]]:
                     print("Decreasing FPS")
                     self.streamer_q.put("[DEC_FPS]")
-                
+
                 # Control Bitrate
                 if joymap[comm["INC_RATE"]]:
                     print("Increasing Bitrate")

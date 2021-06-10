@@ -79,12 +79,11 @@ class RTSP_Server:
         ! avdec_h264 \
         ! clockoverlay halignment=left valignment=bottom \
         text="Current Time" shaded-background=true font-desc="Sans, 11" \
-        ! timeoverlayparse \
         ! videoconvert \
         ! queue \
         ! autovideosink sync=false\
         '
-        
+
         filesink = f'\
         filesave. \
         ! queue leaky=2 \
@@ -100,7 +99,7 @@ class RTSP_Server:
         '
         pipeline = primary_cam + secondary_cam + filesink
         return pipeline
-    
+
 
     def on_ssrc_active(self, session, source):
         stats = source.get_property("stats")
@@ -113,9 +112,6 @@ class RTSP_Server:
             data = f"{bitrate[1]},{jitter[1]}"
             with open("tmp/rec_stats.tmp","w") as f:
                 f.write(data)
-            
-            # twcc_stats = source.get_property("twcc-stats")
-            # print("TWCC stats:",twcc_stats)
 
 
     def media_prepared_cb(self, media):
@@ -128,7 +124,7 @@ class RTSP_Server:
         if stream is None:
             logging.debug("No stream present")
             return
-        
+
         session = stream.get_rtpsession()
         logging.debug("Watching session %s on stream %0d" % (session,i))
 
@@ -136,7 +132,7 @@ class RTSP_Server:
         # rtcp_range = stream.get_server_port(Gio.SocketFamily.IPV4)
         # print("rtcp ports", rtcp_range.to_string(GstRtsp.RTSPTimeRange))
         # print("rtp socket", stream.get_rtp_socket(Gio.SocketFamily.IPV4))
-        
+
         # Add probe: https://github.com/vk-gst/Probes-handling-in-GStreamer-pipelines
         # get the element handle from pipeline
         # pipeline = self.factory.pipeline
@@ -159,7 +155,7 @@ class RTSP_Server:
     def media_configure_cb(self, factory, media):
         media.connect("prepared", self.media_prepared_cb)
 
-  
+
     def create_server(self):
         self.server = GstRtspServer.RTSPServer.new()
         self.server.set_service(self.port)

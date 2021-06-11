@@ -22,19 +22,19 @@ def pretty_string(d, indent=0):
 
 class Sys_Stats():
     stats_column = [
-        [sg.Text("RPi Status")],
-        [sg.Text("Connection Status: Disconnected", key="-RPI STATUS-")],
+        [sg.Text("RPi Status", font=("Helvetica", 25))],
+        [sg.Text("Connection Status: Disconnected", key="-RPI STATUS-", font=("Helvetica", 15))],
         [sg.Listbox(values=[], enable_events=True, size=(40,20), key="-STAT LIST-")],
     ]
 
     host_log = [
-        [sg.Text("Host Machine Log")],
+        [sg.Text("Host Machine Log", font=("Helvetica", 20))],
         [sg.Listbox(values=[], enable_events=True, size=(100,50), key="-HOST LOG-")]
     ]
 
     pi_log = [
         [
-            sg.Text("RPi Log"),
+            sg.Text("RPi Log", font=("Helvetica", 20)),
             sg.Button("Refresh")
         ],
         [sg.Listbox(values=[], enable_events=True, size=(100,50), key="-RPI LOG-")]
@@ -50,7 +50,7 @@ class Sys_Stats():
         ]
     ]
 
-    window = sg.Window("System Status", layout)
+    window = sg.Window("System Stats", layout)
 
     def __init__(self, conf):
         self.conf = conf
@@ -130,7 +130,7 @@ class Sys_Stats():
                 break
             if event is None or event == "Exit":
                 break
-            if event is not None:
+            if event is not None and event != "__TIMEOUT__":
                 logging.debug("GUI Event: %s" % event)
 
             # Update host machine log

@@ -4,6 +4,8 @@ import psutil
 from pijuice import PiJuice
 import socket
 import json
+from control import pi_gps
+import logging
 
 class Pi_Stats():
     def __init__(self, conf):
@@ -13,6 +15,10 @@ class Pi_Stats():
         self.geo_lookup = GeoLookup(key)
 
         self.pijuice = PiJuice(1, 0x14) # Instantiate PiJuice interface object
+        self.gps = pi_gps.Pi_GPS(conf)
+
+        logging.basicConfig(filename=conf['log_path'], filemode='a',
+        format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
 
     def main_loop(self):
         port = self.conf['pi']['comms_port']
@@ -20,22 +26,22 @@ class Pi_Stats():
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(('',port))
         s.listen()
-        print("Listening on port %0d" % port)
+        logging.info("Listening on port %0d" % port)
 
         while True:
             try:
                 # print("Waiting")
                 conn, addr = s.accept()
-                print("Connected")
+                logging.debug("Connected")
                 data = conn.recv(16)
                 if addr[0] == self.conf['host']['vpn_addr']:
                     info_dict = self.generate_info(data.decode('utf-8'))
                     dump = json.dumps(info_dict)
-                    print(dump)
+                    logging.debug(dump)
                     conn.sendall(dump.encode())
 
                 else:
-                    print("Invalid connecting address", addr)
+                    logging.warning("Invalid connecting address", addr)
             finally:
                 conn.close()
 
@@ -48,6 +54,8 @@ class Pi_Stats():
         if lookup is not None:
             keys = ['ip', 'continent_code', 'country_code', 'region_code', 'city', 'zip', 'latitude', 'longitude']
             info['ip_info'] = {key:lookup[key] for key in keys}
+        
+        info['gps_info'] = self.gps.get_location()
 
         cpu_temp = CPUTemperature().temperature
         cpu_load = psutil.cpu_percent()
@@ -81,12 +89,12 @@ class Pi_Stats():
             location = self.geo_lookup.get_own_location()
 
             if location is None:
-                print("Failed to find location")
+                logging.warning("Failed to find location")
             return location
 
 
         except Exception as e:
-            print(e)
+            logging.exception(e)
 
 if __name__ == '__main__':
     with open("robocam_conf.json") as conf_file:

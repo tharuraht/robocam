@@ -103,3 +103,10 @@ The arduino code is located at `robot/ser_car/ser_car.ino`. It can be compiled a
 ### ipstack
 
 The location estimation feature of the system uses [ipstack geolocation API](https://ipstack.com/), which requires a personal key to be obtained (free with a signup). Once key is obtained, replace `ipstack.key` contents with key or a create symbolic link to a file containing the key.
+
+## Aliasing connecting devices
+The connected USB devices (USB camera, GPS module, Arduino) will be automatically assigned ports by the OS under the `dev` directory. However, the assignment is not consistent. Hence, the follwing devices should be aliased:
+- GPS module
+- Arduino
+
+The stack overflow answer [here](https://unix.stackexchange.com/questions/66901/how-to-bind-usb-device-under-a-static-name) provides a good method to safely alias the devices.

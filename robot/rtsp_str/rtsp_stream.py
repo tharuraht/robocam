@@ -9,7 +9,7 @@ import os
 import logging
 from pijuice import PiJuice
 import time
-from streamer_utils import Video_params, Status, Anno_modes
+from rtsp_str.streamer_utils import Video_params, Status, Anno_modes
 
 
 Gst.init(None)
@@ -333,7 +333,8 @@ if __name__ == "__main__":
 
     logging.basicConfig(filename=conf['log_path'], filemode='a',
     format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
-    logging.getLogger().addHandler(logging.StreamHandler())
+    # logging.getLogger().addHandler(logging.StreamHandler())
+    
 
     streamer = video_streamer(conf)
     streamer.launch()

@@ -65,6 +65,8 @@ class video_streamer:
         bitrate = 3000000 if self.low_bitrate else self.bitrate
         num_buff = 3 if self.low_bitrate else -1
 
+        debug = self.conf['log_level'] == "DEBUG"
+
         primary_cam = f'\
         rpicamsrc preview=false rotation=180 annotation-mode={annotation} name=src num-buffers={num_buff}\
         bitrate={bitrate} annotation-text=\"Bitrate {bitrate} \" \
@@ -89,7 +91,7 @@ class video_streamer:
         '
 
         rtsp_client = f'\
-        rtspclientsink debug=true protocols=udp-mcast+udp name=rtsp \
+        rtspclientsink debug={debug} protocols=udp-mcast+udp name=rtsp \
         location=rtsp://{hostip}:{hostport}/test latency=0 ulpfec-percentage={fec} \
         '
 

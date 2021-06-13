@@ -48,6 +48,7 @@ class Pi_Stats():
 
 
     def generate_info(self, req):
+        logging.debug(f"Generating info, log = {req}")
         info = {}
 
         lookup = self.ip_lookup()
@@ -81,6 +82,7 @@ class Pi_Stats():
                 lines = [line.strip() for line in lines]
                 info['pi_log'] = lines
 
+        logging.debug(f"Generated info: {info}")
         return info
 
 

@@ -20,10 +20,12 @@
     "rev_cam_params" : "video/x-h264,width=640,height=480",
     "rev_cam_dir" : "/dev/v4l/by-id/usb-HD_Web_Camera_HD_Web_Camera_Ucamera001-video-index0",
     "starting_bitrate": 200000,
-    "fec_percentage": 5,
+    "fec_percentage": 30,
     "gst_path": "/home/pi/Downloads/gst-build/gst-env.py",
     "video_dir": "/media/usb/robocam_videos",
-    "video_save_dur": 20000000000
+    "video_save_dur": 20000000000,
+    "arduino_port": "/dev/foo/ttyArduino",
+    "gps_port": "/dev/foo/ttyGPS"
   },
   "log_level" : "DEBUG",
   "log_path" : "/var/tmp/robocam.log",

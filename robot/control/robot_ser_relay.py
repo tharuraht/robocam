@@ -45,20 +45,17 @@ class Serial_Relay():
 
     def setup_device(self):
         # Find Arduino
-        p=subprocess.run(["ls /dev/ttyUSB*"], shell=True, stdout=subprocess.PIPE, universal_newlines=True)
-        if p.returncode == 0:
-            self.device_found = True
-            logging.debug(p.stdout)
-            dev_port = p.stdout.strip()
+        dev_port = self.conf['pi']['arduino_port']
 
-            #Connect to Arduino serial port
-            try:
-                logging.debug(f"Connecting to serial port {dev_port}")
-                self.ser = serial.Serial(dev_port, 9800, timeout=1)
-            except Exception as e:
-                logging.exception(e)
-                exit(1)
-            logging.info(f"Arduino connected at port {dev_port}")
+        #Connect to Arduino serial port
+        try:
+            logging.debug(f"Connecting to serial port {dev_port}")
+            self.ser = serial.Serial(dev_port, 9800, timeout=1)
+            self.device_found = True
+        except Exception as e:
+            logging.exception(e)
+            exit(1)
+        logging.info(f"Arduino connected at port {dev_port}")
 
 
     def write_dev(self, msg):
@@ -93,7 +90,7 @@ class Serial_Relay():
                 self.prev_time = cur_time
 
             duration = cur_time - self.prev_time
-            logging.debug("DURATION:",duration)
+            logging.debug("DURATION: %0d" % duration)
 
             if len(self.movement_history) >= self.max_history:
                     self.movement_history.pop(0)

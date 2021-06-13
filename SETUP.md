@@ -30,6 +30,7 @@ The following libraries are all Python3 compatible libraries, and can be install
 - miniupnpc
 - matplotlib
 - speedtest-cli
+- gpsd-py3
 
 ### Other prerequisites
 

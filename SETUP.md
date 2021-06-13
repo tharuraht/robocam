@@ -31,6 +31,8 @@ The following libraries are all Python3 compatible libraries, and can be install
 - matplotlib
 - speedtest-cli
 - gpsd-py3
+- pysimplegui
+- pyserial
 
 ### Other prerequisites
 
@@ -106,7 +108,9 @@ The arduino code is located at `robot/ser_car/ser_car.ino`. It can be compiled a
 The location estimation feature of the system uses [ipstack geolocation API](https://ipstack.com/), which requires a personal key to be obtained (free with a signup). Once key is obtained, replace `ipstack.key` contents with key or a create symbolic link to a file containing the key.
 
 ## Aliasing connecting devices
+
 The connected USB devices (USB camera, GPS module, Arduino) will be automatically assigned ports by the OS under the `dev` directory. However, the assignment is not consistent. Hence, the follwing devices should be aliased:
+
 - GPS module
 - Arduino
 

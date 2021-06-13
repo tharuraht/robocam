@@ -106,7 +106,7 @@ class PS_Bitrate:
         # If all are zero, ignore
         if all(rates == 0 for rates in bitrates):
             return Observation.gamma
-        
+
         if start <= median <= end:
             logging.debug('Monotonicaly increasing')
             return Observation.beta
@@ -115,7 +115,7 @@ class PS_Bitrate:
             return Observation.alpha
         else:
             return Observation.gamma
-    
+
 
     def find_rms(self, bitrates):
         total_rms = rms(bitrates)
@@ -183,7 +183,7 @@ class PS_Bitrate:
         else: # either is gamma
             status = Status.Non_Monotonic
             cur_rms = self.find_rms(bitrates)
-        
+
         logging.info("Status: %s" % status)
         if status == Status.Non_Monotonic:
             logging.info("Current rms state %0d" % cur_rms)

@@ -6,6 +6,7 @@ import socket
 import json
 from control import pi_gps
 import logging
+from datetime import datetime
 
 class Pi_Stats():
     def __init__(self, conf):
@@ -50,11 +51,14 @@ class Pi_Stats():
     def generate_info(self, req):
         info = {}
 
+        cur_timestamp = datetime.now()
+        info['timestamp'] = cur_timestamp.strftime("%d/%m/%Y %H:%M:%S")
+
         lookup = self.ip_lookup()
         if lookup is not None:
             keys = ['ip', 'continent_code', 'country_code', 'region_code', 'city', 'zip', 'latitude', 'longitude']
             info['ip_info'] = {key:lookup[key] for key in keys}
-        
+
         info['gps_info'] = self.gps.get_location()
 
         cpu_temp = CPUTemperature().temperature

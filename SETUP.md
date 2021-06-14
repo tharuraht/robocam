@@ -39,7 +39,7 @@ The following libraries are all Python3 compatible libraries, and can be install
 - [Wireguard VPN](https://www.wireguard.com/install/)
 - [Arduino IDE](https://www.arduino.cc/en/software)
 
-## Setup Instructions
+## Setup Instructions (Both Nodes)
 
 ### Wireguard VPN
 
@@ -88,9 +88,9 @@ The Wireguard VPN tunnel between the two nodes is based on the instructions list
     - Server (host machine) address: 10.200.200.1
     - Client (RPi) address: 10.200.200.2
 
-Note: the Wireguard server will listen on port 51820 for clinet connections. This can be changed in [`wg0.conf`](utils/wireguard/wg0.conf), but the port needs forwarding to make the server reachable from the internet. 
+Note: the Wireguard server will listen on port 51820 for clinet connections. This can be changed in [`wg0.conf`](utils/wireguard/wg0.conf), but the port needs forwarding to make the server reachable from the internet.
 
-### Wireguard watchdog
+### Wireguard watchdog (Both Nodes)
 
 Found in `utils/wg-watchdog.sh`, the script periodically checks if the VPN tunnel is active and will attempt to restart it if not.
 Can be run manually or configured to peridically run using `crontab`, the crontab entry used in the original project on the RPi was given as:
@@ -99,15 +99,15 @@ Can be run manually or configured to peridically run using `crontab`, the cronta
 */15 * * * * /home/pi/Documents/robocam/utils/wg-watchdog.sh
 ```
 
-### Arduino Code
+### Arduino Code (Any computer)
 
 The arduino code is located at `robot/ser_car/ser_car.ino`. It can be compiled and uploaded to the Arduino via the Arduino IDE.
 
-### ipstack
+### ipstack (RPi)
 
 The location estimation feature of the system uses [ipstack geolocation API](https://ipstack.com/), which requires a personal key to be obtained (free with a signup). Once key is obtained, replace `ipstack.key` contents with key or a create symbolic link to a file containing the key.
 
-## Aliasing connecting devices
+## Aliasing connecting devices (RPi)
 
 The connected USB devices (USB camera, GPS module, Arduino) will be automatically assigned ports by the OS under the `dev` directory. However, the assignment is not consistent. Hence, the follwing devices should be aliased:
 
@@ -115,3 +115,16 @@ The connected USB devices (USB camera, GPS module, Arduino) will be automaticall
 - Arduino
 
 The stack overflow answer [here](https://unix.stackexchange.com/questions/66901/how-to-bind-usb-device-under-a-static-name) provides a good method to safely alias the devices.
+
+## PiJuice (RPi)
+
+Once attached to the RPi via the GPIO pins, the PiJuice software is installed via `sudo apt-get install pijuice-base`
+Upon installation, configure the following via the `pijuice_cli` command
+
+- Buttons:
+  - Power up on SW1 button press: `SINGLE_PRESS: HARD_FUNC_POWER_ON, 800`
+  - RPi shutdown on SW1 double press: `DOUBLE_PRESS: SYS_FUNC_HALT_POW_OFF, 800`
+  - Full PiJuice hardware power off on SW2: `DOUBLE_PRESSL HARD_FUNC_POW_OFF, 800`
+- RPi shutdown on low charge: go to `System Task` activate (cross) `Minimum charge` and set threshold to 5%
+- RPi startup on charge: go to `System Task` activate (cross) `Wakeup on charge` and set threshold to 5%
+- Auto reboot: go to `System Task` activate (cross) `Watchdog` and set period to 1

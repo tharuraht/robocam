@@ -5,6 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 from control import robot_ser_relay
 import os
+import logging
 
 
 class Central_Control():
@@ -18,6 +19,9 @@ class Central_Control():
         self.relay = robot_ser_relay.Serial_Relay(conf)
         self.setup_socket()
         self.streamer_q = ctrl_streamer_q
+
+        logging.basicConfig(filename=conf['log_path'], filemode='a',
+        format=conf['log_format'], level=logging.getLevelName(conf['log_level']))
 
 
     def  __del__(self):
@@ -34,7 +38,7 @@ class Central_Control():
         self.sock.bind((UDP_IP, UDP_PORT))
         self.sock.settimeout(0.01)
 
-        print(f"Ready to receive at {UDP_IP}:{UDP_PORT}")
+        logging.info(f"Ready to receive at {UDP_IP}:{UDP_PORT}")
 
 
     def parse_map(self, joymap):
@@ -48,7 +52,7 @@ class Central_Control():
             self.relay.save_history(joymap['x'],joymap['y'])
 
         if joymap[comm["REWIND"]]:
-            print("Rewinding")
+            logging.info("Rewinding")
             self.rewind_mode = True
             self.relay.rewind()
         elif not joymap[comm["REWIND"]]:
@@ -57,40 +61,42 @@ class Central_Control():
         if self.streamer_q is not None:
             try:
                 if joymap[comm["RESTART_PI"]]:
-                    print("Restarting Pi")
+                    logging.info("Restarting Pi")
                     os.system("sudo reboot")
                 if joymap[comm["RESTART_STREAM"]]:
+                    logging.info("Restarting Streamer Pipeline")
                     self.streamer_q.put("[PIPE_RESTART]")
                 if joymap[comm["TOGGLE_LOW_BITRATE"]]:
+                    logging.info("Toggling low-bitrate mode")
                     self.streamer_q.put("[TOGGLE_LOW_BITRATE]")
 
                 # Control FPS
                 if joymap[comm["INC_FPS"]]:
-                    print("Increasing FPS")
+                    logging.info("Increasing FPS")
                     self.streamer_q.put("[INC_FPS]")
                 elif joymap[comm["DEC_FPS"]]:
-                    print("Decreasing FPS")
+                    logging.info("Decreasing FPS")
                     self.streamer_q.put("[DEC_FPS]")
 
                 # Control Bitrate
                 if joymap[comm["INC_RATE"]]:
-                    print("Increasing Bitrate")
+                    logging.info("Increasing Bitrate")
                     self.streamer_q.put("[INC_RATE]")
                 elif joymap[comm["DEC_RATE"]]:
-                    print("Decreasing Bitrate")
+                    logging.info("Decreasing Bitrate")
                     self.streamer_q.put("[DEC_RATE]")
 
                 # Toggle stats
                 if joymap[comm["TOGGLE_STATS"]]:
-                    print("Toggling stats...")
+                    logging.info("Toggling stats...")
                     self.streamer_q.put("[TOGGLE_STATS]")
                 if joymap[comm["TOGGLE_SEC_CAM"]]:
-                    print("Toggling second camera...")
+                    logging.info("Toggling second camera...")
                     self.streamer_q.put("[TOGGLE_SEC_CAM]")
             except KeyError:
                 pass
         else:
-            print("Streamer control queue not set")
+            logging.warning("Streamer control queue not set")
 
 
     def control_loop(self):
@@ -98,11 +104,11 @@ class Central_Control():
         while True:
             try:
                 data = self.sock.recv(1024) # buffer size is 1024 bytes TODO check if big enough
-                # print("Data received: %s" % data)
+                # logging.debug("Data received: %s" % data)
                 joymap = json.loads(data.decode())
 
                 if joymap != prevmap:
-                    print(joymap)
+                    logging.debug(joymap)
                     self.parse_map(joymap)
             except socket.timeout:
                 if self.rewind_mode == True:

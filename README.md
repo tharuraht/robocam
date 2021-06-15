@@ -2,14 +2,16 @@
 
 This repository contains the system implementation of the 'Design and Implementation of a Remote-Controlled Robot Platform connected to 4G' MEng project conducted with the department of Electrical Engineering at Imperial College London.
 
-## TODO
+## Abstract
 
-- verify if there is a latency difference between profiles, select best one
-- find the 'auto' keyframe interval (print it out?)
-- possibly add framerate profiles depending on network conditions (e.g. lower framerate, more keyframes)
-- change RTSP config to use Secure RTP (see profiles option for rtsp client sink)
-- enable username and password for RTSP
-- add overlay showing connection information to pi
+With the ever-growing importance and utilization of robotics in every-day actions, and the significant increase in the performance of mobile data networks. This project collates research regarding the performance of current mobile networks (in particular 4G), frameworks to enable
+low-latency real-time video streaming via 4G, and current ‘off-the-shelf’ components to build a
+remote-controlled robot platform.
+This research was combined with an iterative design and build process to create a functional remote
+platform, capable of communicating and being controlled by a host machine via a mobile network
+connection, and providing a live video stream with sub-second latency from the on-board camera.
+The system is designed to automatically setup and connect on startup, with various contingencies
+researched and implemented to improve the robustness of the system.
 
 ## Repository Structure
 

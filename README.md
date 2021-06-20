@@ -4,7 +4,7 @@ This repository contains the system implementation of the 'Design and Implementa
 
 ## Abstract
 
-With the ever-growing importance and utilization of robotics in every-day actions, and the significant increase in the performance of mobile data networks. This project collates research regarding the performance of current mobile networks (in particular 4G), frameworks to enable
+With the ever-growing importance and utilization of robotics in every-day actions, and the significant increase in the performance of mobile data networks. This project collates research regarding the performance of current mobile networks (in particular 4G), frameworks to enable
 low-latency real-time video streaming via 4G, and current ‘off-the-shelf’ components to build a
 remote-controlled robot platform.
 This research was combined with an iterative design and build process to create a functional remote
